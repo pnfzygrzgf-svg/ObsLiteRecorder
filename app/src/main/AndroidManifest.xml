@@ -34,6 +34,11 @@
             android:label="@string/about_app_title"
             android:exported="false" />
 
+        <!-- Upload-Seite -->
+        <activity
+            android:name=".UploadActivity"
+            android:exported="false" />
+
         <service
             android:name=".obslite.ObsLiteService"
             android:exported="false" />

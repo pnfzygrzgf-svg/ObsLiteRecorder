@@ -86,6 +86,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     private lateinit var btnUsb: Button
+    private lateinit var btnOpenUpload: Button
     private lateinit var tvUsbStatus: TextView
     private lateinit var tvLeftDistance: TextView
     private lateinit var tvRightDistance: TextView
@@ -160,6 +161,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
         btnUsb = findViewById(R.id.btnUsb)
+        btnOpenUpload = findViewById(R.id.btnOpenUpload)
         tvUsbStatus = findViewById(R.id.tvUsbStatus)
         tvLeftDistance = findViewById(R.id.tvLeftDistance)
         tvRightDistance = findViewById(R.id.tvRightDistance)
@@ -168,19 +170,26 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         tvGpsStatus = findViewById(R.id.tvGpsStatus)
         mapView = findViewById(R.id.mapView)
 
-        // NEU: "Über diese App"-Link unten verdrahten
+        // "Über diese App"-Link
         val tvAbout: TextView = findViewById(R.id.tvAbout)
         tvAbout.setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
         }
 
-        // Optionaler Debug-Button (im Layout mit id=btnDebugBin)
+        // Debug-Button zum Prüfen der letzten BIN-Datei
         val btnDebugBin: Button? = findViewById(R.id.btnDebugBin)
         Log.d(TAG, "btnDebugBin gefunden: ${btnDebugBin != null}")
         btnDebugBin?.setOnClickListener {
             Log.d(TAG, "btnDebugBin geklickt")
             tvUsbStatus.text = "BIN-Check läuft..."
             debugValidateLastBin()
+        }
+
+        // Button zum Öffnen der Upload-Seite
+        btnOpenUpload.setOnClickListener {
+            Log.d(TAG, "btnOpenUpload geklickt – starte UploadActivity")
+            val intent = Intent(this, UploadActivity::class.java)
+            startActivity(intent)
         }
 
         // MapView konfigurieren
@@ -202,22 +211,16 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
         // Service-Buttons
         btnStart.setOnClickListener {
-            // Aufnahme im Service starten, GPS läuft unabhängig davon
             obsService?.startRecording()
-
             isRecording = true
             updateRecordingUi()
         }
 
         btnStop.setOnClickListener {
-            // Aufnahme im Service stoppen (wenn gebunden)
             obsService?.stopRecording()
-
-            // GPS NICHT stoppen – Karte soll immer Position zeigen,
-            // solange Activity sichtbar ist
             isRecording = false
             updateRecordingUi()
-            refreshFileList() // neue Datei anzeigen
+            refreshFileList()
         }
 
         // USB-Setup
@@ -252,7 +255,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     override fun onStart() {
         super.onStart()
 
-        // GPS-Updates IMMER starten, sobald die Activity sichtbar ist
+        // GPS-Updates starten
         startLocationUpdates()
 
         val intent = Intent(this, ObsLiteService::class.java)
@@ -261,7 +264,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     override fun onStop() {
         super.onStop()
-        // Wenn Activity nicht mehr sichtbar ist, GPS wieder stoppen
         stopLocationUpdates()
         if (bound) {
             unbindService(connection)
@@ -277,7 +279,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     override fun onPause() {
         super.onPause()
         mapView.onPause()
-        // aktuellen Wert aus dem EditText lesen und speichern
         val currentWidth = getHandlebarWidthCm()
         saveHandlebarWidthCm(currentWidth)
     }
@@ -292,13 +293,11 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     private fun updateRecordingUi() {
         if (isRecording) {
-            // Start-Button grün, Stop-Button rot
             btnStart.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4CAF50"))
             btnStop.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F44336"))
             btnStart.isEnabled = false
             btnStop.isEnabled = true
         } else {
-            // Ursprungsfarben wiederherstellen
             btnStart.backgroundTintList = startOriginalTint
             btnStop.backgroundTintList = stopOriginalTint
             btnStart.isEnabled = true
@@ -337,14 +336,11 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             return
         }
 
-        // Schon aktiv? Dann nicht noch einmal registrieren
-        if (locationCallback != null) {
-            return
-        }
+        if (locationCallback != null) return
 
         val request = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
-            1000L // Intervall: alle 1 Sekunde
+            1000L
         ).setMinUpdateIntervalMillis(500L).build()
 
         locationCallback = object : LocationCallback() {
@@ -381,11 +377,8 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     private fun updateMapAndGpsStatus(lat: Double, lon: Double, accuracy: Float) {
         val geoPoint = GeoPoint(lat, lon)
-
-        // Karte auf Position zentrieren
         mapView.controller.setCenter(geoPoint)
 
-        // Marker für aktuelle Position setzen / aktualisieren
         if (locationMarker == null) {
             locationMarker = Marker(mapView).apply {
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -402,9 +395,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             else -> "GPS: schwach (±${acc} m)"
         }
         val color = when {
-            acc <= 10 -> Color.parseColor("#4CAF50") // grün
-            acc <= 30 -> Color.parseColor("#FFC107") // gelb
-            else -> Color.parseColor("#F44336")      // rot
+            acc <= 10 -> Color.parseColor("#4CAF50")
+            acc <= 30 -> Color.parseColor("#FFC107")
+            else -> Color.parseColor("#F44336")
         }
 
         tvGpsStatus.text = statusText
@@ -426,7 +419,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             if (grantResults.isNotEmpty() &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             ) {
-                // nach Erlaubnis direkt GPS starten
                 startLocationUpdates()
             } else {
                 updateGpsStatusNoFix()
@@ -445,7 +437,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
         usbDevice = deviceList.values.first()
         updateUsbStatus("USB: Gerät gefunden, frage Berechtigung...")
-
         usbManager.requestPermission(usbDevice, permissionIntent)
     }
 
@@ -463,7 +454,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             return
         }
 
-        usbPort = driver.ports[0] // meist nur 1 Port
+        usbPort = driver.ports[0]
         try {
             usbPort.open(connection)
             usbPort.setParameters(
@@ -520,11 +511,8 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
     }
 
-    // --- Hilfsfunktion: Lenkerbreite aus EditText lesen ---
-
     private fun getHandlebarWidthCm(): Int {
         val text = etHandlebarWidth.text?.toString()?.trim()
-        // Wenn Eingabe ungültig/leer ist, auf gespeicherten Wert (oder Default) zurückfallen
         return text?.toIntOrNull() ?: loadHandlebarWidthCm()
     }
 
@@ -532,7 +520,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     private fun fillByteList(data: ByteArray) {
         for (datum in data) {
-            if (lastByteRead?.toInt() == 0x00) { // neues Paket nach 0x00
+            if (lastByteRead?.toInt() == 0x00) {
                 val newList = LinkedList<Byte>()
                 newList.add(datum)
                 byteListQueue.add(newList)
@@ -569,7 +557,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
                 val rawDistanceCm = (event.distanceMeasurement.distance * 100).toInt()
                 val sourceId = event.distanceMeasurement.sourceId
 
-                // Lenkerbreite: Hälfte abziehen
                 val handlebarWidthCm = getHandlebarWidthCm()
                 val halfHandlebar = handlebarWidthCm / 2
                 val corrected = (rawDistanceCm - halfHandlebar).coerceAtLeast(0)
@@ -660,7 +647,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             nonEmptyChunks++
 
             try {
-                // COBS decode wie im Portal, dann Event.parseFrom
                 val chunkList = LinkedList<Byte>()
                 chunk.forEach { b -> chunkList.add(b) }
 
@@ -726,12 +712,10 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             tvUsbStatus.text = "USB: Daten ${data.size} B"
         }
 
-        // 1. Rohdaten an den Service weitergeben (Aufzeichnung)
         if (bound && obsService != null) {
             obsService?.onUsbData(data)
         }
 
-        // 2. Live-Anzeige
         runOnUiThread {
             fillByteList(data)
             if (completeCobsAvailable()) {

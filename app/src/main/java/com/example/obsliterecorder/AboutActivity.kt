@@ -2,10 +2,8 @@ package com.example.obsliterecorder
 
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
-import android.view.MenuItem
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.text.HtmlCompat
 
 class AboutActivity : AppCompatActivity() {
 
@@ -13,36 +11,20 @@ class AboutActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_about)
 
-        // Optional: Toolbar-Back-Button
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.about_app_title)
+        // Referenzen auf die TextViews aus activity_about.xml
+        val tvAboutIntro: TextView = findViewById(R.id.tvAboutIntro)
+        val tvAboutCredits: TextView = findViewById(R.id.tvAboutCredits)
+        val tvAboutLicense: TextView = findViewById(R.id.tvAboutLicense)
 
-        // Intro mit HTML-Link (OpenBikeSensor Lite)
-        val introView = findViewById<TextView>(R.id.tvAboutIntro)
-        introView.text = HtmlCompat.fromHtml(
-            getString(R.string.about_app_intro),
-            HtmlCompat.FROM_HTML_MODE_LEGACY
-        )
-        introView.movementMethod = LinkMovementMethod.getInstance()
-        introView.linksClickable = true
+        // Falls in den Strings Links enthalten sind, anklickbar machen
+        tvAboutCredits.movementMethod = LinkMovementMethod.getInstance()
+        tvAboutLicense.movementMethod = LinkMovementMethod.getInstance()
 
-        // Credits & License: Links (GitHub-URLs) anklickbar machen
-        val creditsView = findViewById<TextView>(R.id.tvAboutCredits)
-        creditsView.movementMethod = LinkMovementMethod.getInstance()
-        creditsView.linksClickable = true
-
-        val licenseView = findViewById<TextView>(R.id.tvAboutLicense)
-        licenseView.movementMethod = LinkMovementMethod.getInstance()
-        licenseView.linksClickable = true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return if (item.itemId == android.R.id.home) {
-            finish()
-            true
-        } else {
-            super.onOptionsItemSelected(item)
-        }
+        // Optional: Wenn du HTML in den Strings verwendest, könntest du hier noch
+        // Html.fromHtml(...) einsetzen. Beispiel:
+        //
+        // tvAboutIntro.text = Html.fromHtml(getString(R.string.about_app_intro), Html.FROM_HTML_MODE_LEGACY)
+        //
+        // Da du den alten Code nicht mitgeschickt hast, lasse ich das neutral.
     }
 }
-

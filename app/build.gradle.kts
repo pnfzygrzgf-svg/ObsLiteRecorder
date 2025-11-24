@@ -51,6 +51,9 @@ dependencies {
     implementation("com.github.mik3y:usb-serial-for-android:3.4.6")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+    // NEU: OkHttp für den Upload ins OBS-Portal
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
 // GANZ WICHTIG: protobuf{} steht AUßERHALB von dependencies{}
