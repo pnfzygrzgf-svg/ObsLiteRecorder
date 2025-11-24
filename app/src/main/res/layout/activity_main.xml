@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:id="@+id/main"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Header: Logo + App-Titel -->
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_marginBottom="8dp"
+            android:contentDescription="@string/app_name"
+            android:src="@mipmap/ic_launcher_round" />
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Buttons Aufnahme -->
+        <Button
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aufnahme starten" />
+
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aufnahme stoppen"
+            android:layout_marginTop="16dp" />
+
+        <Button
+            android:id="@+id/btnUsb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="OBS Lite verbinden"
+            android:layout_marginTop="32dp" />
+
+        <TextView
+            android:id="@+id/tvUsbStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="USB: nicht verbunden"
+            android:layout_marginTop="8dp" />
+
+        <!-- Lenkerbreite-Einstellung -->
+        <TextView
+            android:id="@+id/tvHandlebarLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Lenkerbreite (cm)"
+            android:layout_marginTop="24dp" />
+
+        <EditText
+            android:id="@+id/etHandlebarWidth"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="60"
+            android:hint="z.B. 60"
+            android:layout_marginTop="4dp" />
+
+        <!-- Live-Anzeige Sensorwerte -->
+        <TextView
+            android:id="@+id/tvLeftDistance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Links: -"
+            android:layout_marginTop="24dp" />
+
+        <TextView
+            android:id="@+id/tvRightDistance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Rechts: -"
+            android:layout_marginTop="8dp" />
+
+        <!-- GPS-Status -->
+        <TextView
+            android:id="@+id/tvGpsStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="GPS: keine Daten"
+            android:layout_marginTop="24dp" />
+
+        <!-- OSM-Karte für GPS-Feedback -->
+        <org.osmdroid.views.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_marginTop="8dp" />
+
+        <!-- Debug-Button zum Prüfen der letzten BIN-Datei -->
+        <Button
+            android:id="@+id/btnDebugBin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Letzte BIN prüfen"
+            android:layout_marginTop="16dp" />
+
+        <!-- Liste der gespeicherten Dateien -->
+        <TextView
+            android:id="@+id/tvFilesLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aufgezeichnete Dateien:"
+            android:layout_marginTop="16dp" />
+
+        <TextView
+            android:id="@+id/tvFiles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Keine Dateien"
+            android:scrollbars="vertical"
+            android:paddingTop="4dp" />
+
+        <!-- Link: Über diese App -->
+        <TextView
+            android:id="@+id/tvAbout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/about_app_link"
+            android:textSize="14sp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="8dp"
+            android:layout_gravity="center_horizontal"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground" />
+
+    </LinearLayout>
+</ScrollView>

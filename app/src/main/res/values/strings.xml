@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- bestehende Strings -->
+    <string name="app_name">ObsLiteRecorder</string>
+
+    <!-- Link ganz unten auf der Startseite -->
+    <string name="about_app_link">Über diese App</string>
+    <string name="about_app_title">Über diese App</string>
+
+    <!-- Intro mit HTML-Link auf OpenBikeSensor Lite -->
+    <string name="about_app_intro"><![CDATA[
+Diese App zeichnet Fahrten und Überholabstände auf, die mit einem
+<a href="https://www.openbikesensor.org/docs/lite/">OpenBikeSensor Lite</a>
+aufgezeichnet wurden.
+]]></string>
+
+    <string name="about_app_credits_header">Danksagungen &amp; verwendete Projekte</string>
+
+    <!-- \n macht Zeilenumbrüche in der UI -->
+    <string name="about_app_credits">
+        • OpenBikeSensor – https://github.com/openbikesensor\n
+        In dieser App wird Code des OpenBikeSensor-Projekts verwendet.
+        Die Originalsoftware wird unter der GNU Lesser General Public License (LGPL-3.0) veröffentlicht.\n\n
+        • OpenBikeSensor-Logo – https://github.com/turbo-distortion/OpenBikeSensor-Logo\n
+        Das in dieser App verwendete OpenBikeSensor-Logo wurde von Lukas Betzler als Beitrag zum
+        OpenBikeSensor-Projekt erstellt. Das Logo steht unter der Creative-Commons-Lizenz CC BY-SA 4.0.
+        Bei Weitergabe oder Anpassungen ist eine Namensnennung und das Teilen unter derselben Lizenz erforderlich.\n\n
+        • SimRa Android App – https://github.com/simra-project/simra-android\n
+        Teile des Quellcodes, insbesondere zur Fahrtenaufzeichnung, basieren auf Code aus der SimRa Android App.
+        Diese steht unter der Apache License 2.0.
+    </string>
+
+    <string name="about_app_license_header">Lizenz dieser App</string>
+
+    <string name="about_app_license">
+        Diese App wird als Open-Source-Software bereitgestellt.\n
+        Die genaue Lizenz und alle Drittanbieter-Lizenzen findest du im Quellcode-Repository
+        (Datei LICENSE bzw. THIRD_PARTY_LICENSES).\n\n
+        Bitte beachte, dass für die oben genannten Projekte weiterhin deren eigene Lizenzen gelten
+        (LGPL-3.0, CC BY-SA 4.0, Apache-2.0).
+    </string>
+
+</resources>
