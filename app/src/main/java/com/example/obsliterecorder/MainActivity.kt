@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     // SharedPreferences für Lenkerbreite
     private val prefs by lazy {
-        getSharedPreferences("obslite_prefs", Context.MODE_PRIVATE)
+        getSharedPreferences("obslite_prefs", MODE_PRIVATE)
     }
 
     private val usbReceiver = object : BroadcastReceiver() {
@@ -144,7 +144,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         // osmdroid-Konfiguration (User-Agent setzen)
         Configuration.getInstance().load(
             applicationContext,
-            getSharedPreferences("osmdroid", Context.MODE_PRIVATE)
+            getSharedPreferences("osmdroid", MODE_PRIVATE)
         )
         Configuration.getInstance().userAgentValue = packageName
 
@@ -224,7 +224,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         }
 
         // USB-Setup
-        usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+        usbManager = getSystemService(USB_SERVICE) as UsbManager
 
         val explicitIntent = Intent(ACTION_USB_PERMISSION)
         explicitIntent.setPackage(packageName)
@@ -259,7 +259,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         startLocationUpdates()
 
         val intent = Intent(this, ObsLiteService::class.java)
-        bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        bindService(intent, connection, BIND_AUTO_CREATE)
     }
 
     override fun onStop() {
