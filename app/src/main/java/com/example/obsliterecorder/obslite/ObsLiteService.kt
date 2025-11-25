@@ -20,10 +20,11 @@ class ObsLiteService : Service() {
 
     private val binder = LocalBinder()
 
-    // Session sammelt die Events (COBS -> Proto -> korrigierte Distanzen -> COBS)
+    // Session verarbeitet Events (COBS -> Proto -> korrigierte Distanzen -> COBS)
+    // und liefert COBS-kodierte Bytes zurück
     private lateinit var obsSession: OBSLiteSession
 
-    // FileWriter schreibt am Ende alles in eine .bin
+    // FileWriter schreibt während der Fahrt fortlaufend in eine .bin
     private lateinit var fileWriter: OBSLiteFileWriter
 
     // Merkt sich, ob gerade aufgezeichnet wird
@@ -54,7 +55,7 @@ class ObsLiteService : Service() {
         }
         Log.d(TAG, "startRecording()")
 
-        // Neue Session für diese Fahrt (damit Events/Bytes frisch sind)
+        // Neue Session für diese Fahrt (damit Statistiken/State frisch sind)
         obsSession = OBSLiteSession(this)
 
         // Neue Datei anlegen
@@ -69,6 +70,7 @@ class ObsLiteService : Service() {
 
     /**
      * Wird von MainActivity aufgerufen, wenn der Stop-Button gedrückt wird.
+     * Im Streaming-Modus ist hier nur noch das saubere Schließen der Datei nötig.
      */
     fun stopRecording() {
         if (!isRecording) {
@@ -78,26 +80,14 @@ class ObsLiteService : Service() {
         Log.d(TAG, "stopRecording()")
 
         try {
-            // Alle gesammelten Events der Session holen und in Datei schreiben
-            val data = obsSession.getCompleteEvents()
+            // Alle Events wurden bereits während der Aufnahme in die Datei geschrieben.
+            fileWriter.finishSession()
             Log.d(
                 TAG,
-                "stopRecording(): getCompleteEvents() returned ${data.size} bytes, eventsInSession=${obsSession.debugGetEventCount()}"
+                "stopRecording(): file closed. sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
             )
-
-            if (data.isNotEmpty()) {
-                fileWriter.writeSessionData(data)
-                Log.d(TAG, "stopRecording(): data written to file")
-            } else {
-                Log.w(
-                    TAG,
-                    "stopRecording(): Session enthält keine Events, es wird nichts geschrieben."
-                )
-            }
-
-            fileWriter.finishSession()
         } catch (e: Exception) {
-            Log.e(TAG, "stopRecording(): Fehler beim Schreiben/Schließen der Datei", e)
+            Log.e(TAG, "stopRecording(): Fehler beim Schließen der Datei", e)
         } finally {
             isRecording = false
             Log.d(TAG, "stopRecording(): isRecording=$isRecording")
@@ -135,7 +125,8 @@ class ObsLiteService : Service() {
                     "onUsbData(): completeCobsAvailable=true, handledCount=$handledCount, queueSize=${obsSession.debugGetQueueSize()}"
                 )
 
-                if (loc != null) {
+                // handleEvent liefert jetzt die COBS-kodierten Bytes der erzeugten Events zurück
+                val bytes: ByteArray? = if (loc != null) {
                     obsSession.handleEvent(
                         lat = loc.latitude,
                         lon = loc.longitude,
@@ -143,7 +134,7 @@ class ObsLiteService : Service() {
                         accuracy = loc.accuracy
                     )
                 } else {
-                    // Falls noch keine GPS-Position vorhanden ist, Dummy-Position
+                    // Falls noch keine GPS-Position vorhanden ist, Dummy-Werte
                     Log.w(TAG, "onUsbData(): keine gültige Location, verwende Dummy-Werte")
                     obsSession.handleEvent(
                         lat = 0.0,
@@ -153,10 +144,21 @@ class ObsLiteService : Service() {
                     )
                 }
 
+                // Wenn Events erzeugt wurden: sofort in die Datei schreiben
+                if (bytes != null && bytes.isNotEmpty()) {
+                    synchronized(fileWriter) {
+                        fileWriter.writeSessionData(bytes)
+                    }
+                    Log.d(
+                        TAG,
+                        "onUsbData(): ${bytes.size} Bytes in Datei geschrieben, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
+                    )
+                }
+
                 handledCount++
                 Log.d(
                     TAG,
-                    "onUsbData(): nach handleEvent -> sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}, queueSize=${obsSession.debugGetQueueSize()}"
+                    "onUsbData(): nach handleEvent -> handledCount=$handledCount, queueSize=${obsSession.debugGetQueueSize()}"
                 )
 
                 // Sicherheitsbremse
@@ -187,11 +189,29 @@ class ObsLiteService : Service() {
 
         // WICHTIG: GPS-Event explizit in die Session schreiben, wenn aufgenommen wird
         if (isRecording) {
-            obsSession.addGPSEvent(location)
+            // addGPSEvent liefert jetzt direkt die COBS-kodierten Bytes zurück
+            val bytes = obsSession.addGPSEvent(location)
+            synchronized(fileWriter) {
+                fileWriter.writeSessionData(bytes)
+            }
             Log.d(
                 TAG,
-                "onLocationChanged(): GPS-Event hinzugefügt -> sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
+                "onLocationChanged(): GPS-Event geschrieben -> bytes=${bytes.size}, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
             )
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.w(TAG, "onDestroy(): Service wird zerstört, isRecording=$isRecording")
+        // Falls der Service unerwartet beendet wird, Datei sicherheitshalber schließen
+        try {
+            if (isRecording) {
+                fileWriter.finishSession()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "onDestroy(): Fehler beim Schließen der Datei", e)
+        }
+        isRecording = false
     }
 }

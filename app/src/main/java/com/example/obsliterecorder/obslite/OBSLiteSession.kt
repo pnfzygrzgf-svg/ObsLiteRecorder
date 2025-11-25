@@ -23,11 +23,9 @@ class OBSLiteSession(private val context: Context) {
     private var lastLat: Double = 0.0
     private var lastLon: Double = 0.0
 
-    // nur zur Vollständigkeit, falls du irgendwann auswerten willst
-    private val events: ArrayList<Event> = ArrayList()
-
-    // genau diese Byte-Liste landet am Ende in der .bin
-    private val completeEvents: ArrayList<Byte> = ArrayList()
+    // Statt alle Events im RAM zu halten, nur noch Statistiken:
+    private var totalBytesWritten: Int = 0
+    private var totalEvents: Int = 0
 
     // COBS-Puffer für USB-Daten
     val byteListQueue: ConcurrentLinkedDeque<LinkedList<Byte>> = ConcurrentLinkedDeque()
@@ -45,19 +43,28 @@ class OBSLiteSession(private val context: Context) {
     private val movingMedian = MovingMedian()
 
     // --- Debug-Helfer für den Service ---
-    fun debugGetCompleteBytesSize(): Int = completeEvents.size
-    fun debugGetEventCount(): Int = events.size
+    fun debugGetCompleteBytesSize(): Int = totalBytesWritten
+    fun debugGetEventCount(): Int = totalEvents
     fun debugGetQueueSize(): Int = byteListQueue.size
 
     /**
      * Verarbeitet genau EIN komplettes COBS-Paket (byteListQueue.first),
      * erzeugt daraus Events (DistanceMeasurement, UserInput, Geolocation, …)
-     * und hängt sie als COBS-kodierte Events an completeEvents an.
+     * und gibt die COBS-kodierten Bytes dieser Events zurück.
      *
      * Alle Events bekommen genau EINE Zeitquelle:
      *   - Smartphone-Zeit (UNIX, source_id = 3)
+     *
+     * Rückgabe:
+     *  - ByteArray der neu erzeugten Events (Cobs-encodiert, inkl. 0x00-Terminatoren)
+     *  - null, falls nichts erzeugt wurde oder ein Fehler auftrat
      */
-    fun handleEvent(lat: Double, lon: Double, altitude: Double, accuracy: Float): Event? {
+    fun handleEvent(
+        lat: Double,
+        lon: Double,
+        altitude: Double,
+        accuracy: Float
+    ): ByteArray? {
         if (byteListQueue.isEmpty()) {
             Log.w(TAG, "handleEvent(): byteListQueue is empty, nichts zu tun.")
             return null
@@ -78,6 +85,9 @@ class OBSLiteSession(private val context: Context) {
         }
 
         Log.d(TAG, "handleEvent(): decodedData length=${decodedData.size}")
+
+        // Hier sammeln wir alle Bytes, die während dieses handleEvent-Aufrufs erzeugt werden
+        val outBytes = ArrayList<Byte>()
 
         try {
             val obsEvent: Event = Event.parseFrom(decodedData)
@@ -114,12 +124,13 @@ class OBSLiteSession(private val context: Context) {
                     .build()
 
                 val enc = encodeEvent(gpsEvent)
-                events.add(gpsEvent)
-                completeEvents.addAll(enc)
+                outBytes.addAll(enc)
+                totalBytesWritten += enc.size
+                totalEvents++
 
                 Log.d(
                     TAG,
-                    "handleEvent(): GPS-Event erzeugt, encodedBytes=${enc.size}, totalBytes=${completeEvents.size}"
+                    "handleEvent(): GPS-Event erzeugt, encodedBytes=${enc.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                 )
 
                 lastLat = lat
@@ -144,12 +155,13 @@ class OBSLiteSession(private val context: Context) {
                     .build()
 
                 val encDm = encodeEvent(dmEvent)
-                events.add(dmEvent)
-                completeEvents.addAll(encDm)
+                outBytes.addAll(encDm)
+                totalBytesWritten += encDm.size
+                totalEvents++
 
                 Log.d(
                     TAG,
-                    "handleEvent(): DM-Event gespeichert, encodedBytes=${encDm.size}, totalBytes=${completeEvents.size}"
+                    "handleEvent(): DM-Event gespeichert, encodedBytes=${encDm.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                 )
 
                 // 2) Für den gleitenden Median die Lenkerbreite berücksichtigen (in cm)
@@ -180,12 +192,13 @@ class OBSLiteSession(private val context: Context) {
                     .build()
 
                 val encUi = encodeEvent(uiEvent)
-                events.add(uiEvent)
-                completeEvents.addAll(encUi)
+                outBytes.addAll(encUi)
+                totalBytesWritten += encUi.size
+                totalEvents++
 
                 Log.d(
                     TAG,
-                    "handleEvent(): UserInput-Event gespeichert, encodedBytes=${encUi.size}, totalBytes=${completeEvents.size}"
+                    "handleEvent(): UserInput-Event gespeichert, encodedBytes=${encUi.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                 )
 
                 // 2) Zusätzlich ein Distanz-Event zum Knopfzeitpunkt speichern,
@@ -203,12 +216,13 @@ class OBSLiteSession(private val context: Context) {
                         .build()
 
                     val encDmPress = encodeEvent(dmPressEvent)
-                    events.add(dmPressEvent)
-                    completeEvents.addAll(encDmPress)
+                    outBytes.addAll(encDmPress)
+                    totalBytesWritten += encDmPress.size
+                    totalEvents++
 
                     Log.d(
                         TAG,
-                        "handleEvent(): Distance-at-press-Event gespeichert: median=${medianCm}cm -> ${dmAtPress.distance}m, encodedBytes=${encDmPress.size}, totalBytes=${completeEvents.size}"
+                        "handleEvent(): Distance-at-press-Event gespeichert: median=${medianCm}cm -> ${dmAtPress.distance}m, encodedBytes=${encDmPress.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                     )
                 } else {
                     Log.d(TAG, "handleEvent(): UserInput: no median yet, no distance-at-press event")
@@ -222,12 +236,13 @@ class OBSLiteSession(private val context: Context) {
                     .build()
 
                 val encGen = encodeEvent(genericEvent)
-                events.add(genericEvent)
-                completeEvents.addAll(encGen)
+                outBytes.addAll(encGen)
+                totalBytesWritten += encGen.size
+                totalEvents++
 
                 Log.d(
                     TAG,
-                    "handleEvent(): Other event type stored, encodedBytes=${encGen.size}, totalBytes=${completeEvents.size}"
+                    "handleEvent(): Other event type stored, encodedBytes=${encGen.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                 )
             }
 
@@ -241,7 +256,11 @@ class OBSLiteSession(private val context: Context) {
             Log.d(TAG, "handleEvent(): Paket entfernt, neue queueSize=${byteListQueue.size}")
         }
 
-        return null
+        return if (outBytes.isNotEmpty()) {
+            outBytes.toByteArray()
+        } else {
+            null
+        }
     }
 
     /**
@@ -275,7 +294,12 @@ class OBSLiteSession(private val context: Context) {
         }
         Log.d(
             TAG,
-            "fillByteList(): added ${data.size} bytes, queueSize=${byteListQueue.size}, lastByteRead=0x${String.format("%02X", lastByteRead)}"
+            "fillByteList(): added ${data.size} bytes, queueSize=${byteListQueue.size}, lastByteRead=0x${
+                String.format(
+                    "%02X",
+                    lastByteRead
+                )
+            }"
         )
     }
 
@@ -308,22 +332,25 @@ class OBSLiteSession(private val context: Context) {
     }
 
     /**
-     * Wird vom ObsLiteService benutzt, um die komplette
-     * binäre Aufzeichnung (alle Events) zu bekommen.
+     * Früher wurde hier der komplette Inhalt der Session zurückgegeben.
+     * Im Streaming-Modus wird nichts mehr im RAM gesammelt, daher immer leer.
+     * (Sollte nach Anpassung des ObsLiteService nicht mehr verwendet werden.)
      */
     fun getCompleteEvents(): ByteArray {
-        Log.d(
+        Log.w(
             TAG,
-            "getCompleteEvents(): completeEvents.size=${completeEvents.size}, events.size=${events.size}"
+            "getCompleteEvents(): Streaming-Modus aktiv – keine Events im RAM. Rückgabe ist immer leer."
         )
-        return completeEvents.toByteArray()
+        return ByteArray(0)
     }
 
     /**
      * Zusätzliche GPS-Events aus der Smartphone-Location einfügen.
      * Auch hier: nur Smartphone-Zeit.
+     *
+     * Rückgabe: COBS-kodierte Bytes (inkl. 0x00), bereit zum Schreiben in die Datei.
      */
-    fun addGPSEvent(location: Location) {
+    fun addGPSEvent(location: Location): ByteArray {
         val geolocation: Geolocation = Geolocation.newBuilder()
             .setLatitude(location.latitude)
             .setLongitude(location.longitude)
@@ -344,13 +371,15 @@ class OBSLiteSession(private val context: Context) {
             .build()
 
         val enc = encodeEvent(gpsEvent)
-        events.add(gpsEvent)
-        completeEvents.addAll(enc)
+        totalBytesWritten += enc.size
+        totalEvents++
 
         Log.d(
             TAG,
-            "addGPSEvent(): GPS-Event hinzugefügt, encodedBytes=${enc.size}, totalBytes=${completeEvents.size}"
+            "addGPSEvent(): GPS-Event hinzugefügt, encodedBytes=${enc.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
         )
+
+        return enc.toByteArray()
     }
 
     /**
