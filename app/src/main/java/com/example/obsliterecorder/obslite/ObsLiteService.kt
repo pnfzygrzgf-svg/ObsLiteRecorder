@@ -33,6 +33,9 @@ class ObsLiteService : Service() {
     // Letzte bekannte GPS-Position (für handleEvent)
     private var lastLocation: Location? = null
 
+    // Überholabstand (Median beim letzten Knopfdruck) an die Activity liefern
+    fun getLastMedianAtPressCm(): Int? = obsSession.lastMedianAtPressCm
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate()")
@@ -212,6 +215,5 @@ class ObsLiteService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "onDestroy(): Fehler beim Schließen der Datei", e)
         }
-        isRecording = false
     }
 }

@@ -10,6 +10,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
@@ -28,6 +29,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.obsliterecorder.obslite.ObsLiteService
+import com.example.obsliterecorder.obslite.OBSLiteSession
 import com.example.obsliterecorder.proto.Event
 import com.example.obsliterecorder.util.CobsUtils
 import com.google.android.gms.location.LocationCallback
@@ -91,6 +93,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private lateinit var tvUsbStatus: TextView
     private lateinit var tvLeftDistance: TextView
     private lateinit var tvRightDistance: TextView
+    private lateinit var tvOvertakeDistance: TextView
     private lateinit var etHandlebarWidth: EditText
     private lateinit var tvFiles: TextView
     private lateinit var tvGpsStatus: TextView
@@ -98,6 +101,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     // Marker für aktuelle Position
     private var locationMarker: Marker? = null
+    private var defaultLocationIcon: Drawable? = null
 
     // Originalfarben der Buttons merken
     private var startOriginalTint: ColorStateList? = null
@@ -109,6 +113,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     // COBS-Puffer für Live-Anzeige
     private var byteListQueue = ConcurrentLinkedDeque<LinkedList<Byte>>()
     private var lastByteRead: Byte? = null
+
+    // Gleitender Median für Live-Anzeige (links, korrigiert)
+    private val previewMedian = OBSLiteSession.MovingMedian()
 
     // SharedPreferences für Lenkerbreite
     private val prefs by lazy {
@@ -169,6 +176,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         tvUsbStatus = findViewById(R.id.tvUsbStatus)
         tvLeftDistance = findViewById(R.id.tvLeftDistance)
         tvRightDistance = findViewById(R.id.tvRightDistance)
+        tvOvertakeDistance = findViewById(R.id.tvOvertakeDistance)
         etHandlebarWidth = findViewById(R.id.etHandlebarWidth)
         tvFiles = findViewById(R.id.tvFiles)
         tvGpsStatus = findViewById(R.id.tvGpsStatus)
@@ -385,11 +393,27 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
         if (locationMarker == null) {
             locationMarker = Marker(mapView).apply {
+                // Standard-Icon merken
+                defaultLocationIcon = icon
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             }
             mapView.overlays.add(locationMarker)
         }
-        locationMarker?.position = geoPoint
+
+        locationMarker?.apply {
+            position = geoPoint
+            icon = if (isRecording) {
+                // dein Fahrrad-Icon aus res/drawable/ic_location_bike.png
+                ContextCompat.getDrawable(
+                    this@MainActivity,
+                    R.drawable.ic_location_bike
+                )
+            } else {
+                // Standard-Icon wiederherstellen
+                defaultLocationIcon
+            }
+        }
+
         mapView.invalidate()
 
         val acc = accuracy.toInt()
@@ -565,6 +589,11 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
                 val halfHandlebar = handlebarWidthCm / 2
                 val corrected = (rawDistanceCm - halfHandlebar).coerceAtLeast(0)
 
+                // für Median nur linker Sensor (ID 1) relevant
+                if (sourceId == 1) {
+                    previewMedian.newValue(corrected)
+                }
+
                 Log.d(
                     TAG,
                     "Event Distance: src=$sourceId, raw=${rawDistanceCm}cm, handlebar=$handlebarWidthCm, corr=${corrected}cm"
@@ -584,6 +613,13 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
                 Log.d(TAG, "UserInput: $uiType")
                 runOnUiThread {
                     tvUsbStatus.text = "UserInput: $uiType"
+
+                    if (previewMedian.hasMedian()) {
+                        val medianCm = previewMedian.median
+                        tvOvertakeDistance.text = "Überholabstand: ${medianCm} cm"
+                    } else {
+                        tvOvertakeDistance.text = "Überholabstand: -"
+                    }
                 }
             }
 

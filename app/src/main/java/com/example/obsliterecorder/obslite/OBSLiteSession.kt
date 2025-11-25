@@ -10,8 +10,8 @@ import com.example.obsliterecorder.proto.Time
 import com.example.obsliterecorder.util.CobsUtils
 import com.google.protobuf.InvalidProtocolBufferException
 import java.util.LinkedList
-import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.TreeSet
+import java.util.concurrent.ConcurrentLinkedDeque
 
 class OBSLiteSession(private val context: Context) {
 
@@ -26,6 +26,10 @@ class OBSLiteSession(private val context: Context) {
     // Statt alle Events im RAM zu halten, nur noch Statistiken:
     private var totalBytesWritten: Int = 0
     private var totalEvents: Int = 0
+
+    // Letzter Median beim Knopfdruck (in cm), null wenn noch keiner vorhanden
+    var lastMedianAtPressCm: Int? = null
+        private set
 
     // COBS-Puffer für USB-Daten
     val byteListQueue: ConcurrentLinkedDeque<LinkedList<Byte>> = ConcurrentLinkedDeque()
@@ -205,6 +209,10 @@ class OBSLiteSession(private val context: Context) {
                 //    falls wir schon einen Median haben.
                 if (movingMedian.hasMedian()) {
                     val medianCm = movingMedian.median
+
+                    // Für die UI merken (Überholabstand)
+                    lastMedianAtPressCm = medianCm
+
                     val dmAtPress = DistanceMeasurement.newBuilder()
                         .setSourceId(1)
                         .setDistance(medianCm / 100.0f) // cm -> m
@@ -334,7 +342,6 @@ class OBSLiteSession(private val context: Context) {
     /**
      * Früher wurde hier der komplette Inhalt der Session zurückgegeben.
      * Im Streaming-Modus wird nichts mehr im RAM gesammelt, daher immer leer.
-     * (Sollte nach Anpassung des ObsLiteService nicht mehr verwendet werden.)
      */
     fun getCompleteEvents(): ByteArray {
         Log.w(
@@ -346,8 +353,6 @@ class OBSLiteSession(private val context: Context) {
 
     /**
      * Zusätzliche GPS-Events aus der Smartphone-Location einfügen.
-     * Auch hier: nur Smartphone-Zeit.
-     *
      * Rückgabe: COBS-kodierte Bytes (inkl. 0x00), bereit zum Schreiben in die Datei.
      */
     fun addGPSEvent(location: Location): ByteArray {
