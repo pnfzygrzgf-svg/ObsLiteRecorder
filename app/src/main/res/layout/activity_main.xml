@@ -49,7 +49,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="OBS Lite verbinden"
-            android:layout_marginTop="32dp" />
+            android:layout_marginTop="16dp" />
 
         <TextView
             android:id="@+id/tvUsbStatus"
@@ -92,7 +92,7 @@
             android:text="Rechts: -"
             android:layout_marginTop="8dp" />
 
-        <!-- NEU: Anzeige Überholabstand beim letzten Knopfdruck -->
+        <!-- Anzeige Überholabstand beim letzten Knopfdruck -->
         <TextView
             android:id="@+id/tvOvertakeDistance"
             android:layout_width="match_parent"
@@ -125,29 +125,21 @@
             android:text="Letzte BIN prüfen"
             android:layout_marginTop="16dp" />
 
-        <!-- NEU: Button zum Öffnen der Upload-Seite -->
+        <!-- Button zum Öffnen der Upload-Seite -->
         <Button
             android:id="@+id/btnOpenUpload"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Upload zum Portal"
-            android:layout_marginTop="8dp" />
-
-        <!-- Liste der gespeicherten Dateien -->
-        <TextView
-            android:id="@+id/tvFilesLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Aufgezeichnete Dateien:"
+            android:text="Upload ins Portal"
             android:layout_marginTop="16dp" />
 
-        <TextView
-            android:id="@+id/tvFiles"
+        <!-- Button zum Öffnen der Dateiübersicht -->
+        <Button
+            android:id="@+id/btnShowFiles"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Keine Dateien"
-            android:scrollbars="vertical"
-            android:paddingTop="4dp" />
+            android:text="Aufgezeichnete Fahrten"
+            android:layout_marginTop="16dp" />
 
         <!-- Link: Über diese App -->
         <TextView

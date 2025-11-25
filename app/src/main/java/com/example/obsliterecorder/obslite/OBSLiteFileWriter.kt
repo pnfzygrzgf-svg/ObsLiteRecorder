@@ -5,6 +5,9 @@ import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class OBSLiteFileWriter(private val context: Context) {
 
@@ -22,8 +25,12 @@ class OBSLiteFileWriter(private val context: Context) {
             dir.mkdirs()
         }
 
-        val timestamp = System.currentTimeMillis()
-        currentFile = File(dir, "ride_${timestamp}.bin")
+        // Datum/Zeit für Dateinamen im Format: fahrt_tag_monat_jahr_uhrzeit.bin
+        // Beispiel: fahrt_24_11_2025_1430.bin
+        val formatter = SimpleDateFormat("dd_MM_yyyy_HHmm", Locale.getDefault())
+        val timestamp = formatter.format(Date())
+
+        currentFile = File(dir, "fahrt_${timestamp}.bin")
 
         try {
             outputStream = FileOutputStream(currentFile!!)

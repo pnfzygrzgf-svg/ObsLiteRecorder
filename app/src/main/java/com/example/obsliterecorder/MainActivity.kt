@@ -90,12 +90,12 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private lateinit var btnStop: Button
     private lateinit var btnUsb: Button
     private lateinit var btnOpenUpload: Button
+    private lateinit var btnShowFiles: Button
     private lateinit var tvUsbStatus: TextView
     private lateinit var tvLeftDistance: TextView
     private lateinit var tvRightDistance: TextView
     private lateinit var tvOvertakeDistance: TextView
     private lateinit var etHandlebarWidth: EditText
-    private lateinit var tvFiles: TextView
     private lateinit var tvGpsStatus: TextView
     private lateinit var mapView: MapView
 
@@ -173,12 +173,12 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         btnStop = findViewById(R.id.btnStop)
         btnUsb = findViewById(R.id.btnUsb)
         btnOpenUpload = findViewById(R.id.btnOpenUpload)
+        btnShowFiles = findViewById(R.id.btnShowFiles)
         tvUsbStatus = findViewById(R.id.tvUsbStatus)
         tvLeftDistance = findViewById(R.id.tvLeftDistance)
         tvRightDistance = findViewById(R.id.tvRightDistance)
         tvOvertakeDistance = findViewById(R.id.tvOvertakeDistance)
         etHandlebarWidth = findViewById(R.id.etHandlebarWidth)
-        tvFiles = findViewById(R.id.tvFiles)
         tvGpsStatus = findViewById(R.id.tvGpsStatus)
         mapView = findViewById(R.id.mapView)
 
@@ -204,10 +204,17 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             startActivity(intent)
         }
 
+        // Button: Aufgezeichnete Dateien anzeigen
+        btnShowFiles.setOnClickListener {
+            Log.d(TAG, "btnShowFiles geklickt – starte RecordedFilesActivity")
+            val intent = Intent(this, RecordedFilesActivity::class.java)
+            startActivity(intent)
+        }
+
         // MapView konfigurieren
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
-        mapView.controller.setZoom(14.0)
+        mapView.controller.setZoom(18.0)
         mapView.controller.setCenter(GeoPoint(0.0, 0.0))
 
         // Originalfarben merken
@@ -217,9 +224,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         // Gespeicherte Lenkerbreite laden und ins Feld setzen (Default: 60 cm)
         val savedWidth = loadHandlebarWidthCm()
         etHandlebarWidth.setText(savedWidth.toString())
-
-        // initial Dateiliste anzeigen
-        refreshFileList()
 
         // Service-Buttons
         btnStart.setOnClickListener {
@@ -232,7 +236,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             obsService?.stopRecording()
             isRecording = false
             updateRecordingUi()
-            refreshFileList()
         }
 
         // USB-Setup
@@ -314,25 +317,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             btnStop.backgroundTintList = stopOriginalTint
             btnStart.isEnabled = true
             btnStop.isEnabled = true
-        }
-    }
-
-    // --- Dateiliste aktualisieren ---
-
-    private fun refreshFileList() {
-        val dir = File(getExternalFilesDir(null), "obslite")
-        if (!dir.exists()) {
-            tvFiles.text = "Keine Dateien"
-            return
-        }
-        val files = dir.listFiles { f ->
-            f.isFile && f.name.endsWith(".bin")
-        }?.sortedBy { it.lastModified() } ?: emptyList()
-
-        tvFiles.text = if (files.isEmpty()) {
-            "Keine Dateien"
-        } else {
-            files.joinToString("\n") { it.name }
         }
     }
 

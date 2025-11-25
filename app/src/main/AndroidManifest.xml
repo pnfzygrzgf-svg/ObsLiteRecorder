@@ -40,6 +40,12 @@
             android:name=".UploadActivity"
             android:exported="false" />
 
+        <!-- Neue Seite: Aufgezeichnete Fahrten -->
+        <activity
+            android:name=".RecordedFilesActivity"
+            android:label="Aufgezeichnete Fahrten"
+            android:exported="false" />
+
         <service
             android:name=".obslite.ObsLiteService"
             android:exported="false" />
