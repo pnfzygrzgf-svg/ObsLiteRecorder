@@ -18,23 +18,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ObsLiteRecorder">
 
-        <!-- Haupt-Activity (Launcher) -->
+        <!-- Haupt-Activity (Launcher) mit Splash-Theme -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.ObsLiteRecorder.Launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Über diese App -->
+        <!-- Über diese App – erbt das normale App-Theme ohne Splash -->
         <activity
             android:name=".AboutActivity"
             android:label="@string/about_app_title"
             android:exported="false" />
 
-        <!-- Upload-Seite -->
+        <!-- Upload-Seite – ebenfalls normales App-Theme -->
         <activity
             android:name=".UploadActivity"
             android:exported="false" />

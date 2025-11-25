@@ -46,11 +46,13 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+
     // unsere Zusatz-Libs
     implementation("com.google.protobuf:protobuf-javalite:4.28.2")
     implementation("com.github.mik3y:usb-serial-for-android:3.4.6")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // NEU: OkHttp für den Upload ins OBS-Portal
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

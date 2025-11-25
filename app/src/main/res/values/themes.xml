@@ -1,9 +1,26 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+
+    <!-- Basis-App-Theme -->
     <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
+        <!-- Hier könntest du Farben etc. anpassen -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
+    <!-- Normales App-Theme (nach dem Splashscreen) -->
     <style name="Theme.ObsLiteRecorder" parent="Base.Theme.ObsLiteRecorder" />
+
+    <!-- Launcher-/Splash-Theme -->
+    <style name="Theme.ObsLiteRecorder.Launcher" parent="Base.Theme.ObsLiteRecorder">
+        <!-- Hintergrund für ältere Android-Versionen -->
+        <item name="android:windowBackground">@drawable/splash_screen</item>
+
+        <!-- Jetpack SplashScreen (Android 12+ & core-splashscreen) -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/obs_splash_logo</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+
+        <!-- Nach dem Splashscreen -->
+        <item name="postSplashScreenTheme">@style/Theme.ObsLiteRecorder</item>
+    </style>
+
 </resources>

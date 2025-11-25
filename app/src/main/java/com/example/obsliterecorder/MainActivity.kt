@@ -24,6 +24,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.obsliterecorder.obslite.ObsLiteService
@@ -139,6 +140,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Splashscreen installieren (muss vor super.onCreate aufgerufen werden)
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
 
         // osmdroid-Konfiguration (User-Agent setzen)

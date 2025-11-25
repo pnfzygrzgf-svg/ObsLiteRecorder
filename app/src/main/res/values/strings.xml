@@ -2,7 +2,7 @@
 <resources>
 
     <!-- bestehende Strings -->
-    <string name="app_name">ObsLiteRecorder</string>
+    <string name="app_name">OBS Lite Recorder</string>
 
     <!-- Link ganz unten auf der Startseite -->
     <string name="about_app_link">Über diese App</string>
