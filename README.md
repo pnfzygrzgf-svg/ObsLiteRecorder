@@ -28,6 +28,8 @@ Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 <img width="240" height="533" alt="aufgezeichnete_fahrten" src="https://github.com/user-attachments/assets/e7d3d742-fffa-4951-a6ae-42538b816cce" />
 
 
+# APK
+https://github.com/pnfzygrzgf-svg/ObsLiteRecorder/releases
 
 
 # OpenBikeSensor
