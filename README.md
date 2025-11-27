@@ -13,21 +13,26 @@ Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 
 # Screenshots
 
-<img width="240" height="533" alt="hauptansicht" src="https://github.com/user-attachments/assets/679f057d-c98b-4d3b-94fc-a071ce8807cd" />
+<img width="240" height="533" alt="Screenshot_20251127-200737" src="https://github.com/user-attachments/assets/f8c398b7-114a-46b8-9e54-ab8f9ff6d072" />
+
+<img width="240" height="533" alt="Screenshot_20251127-200818" src="https://github.com/user-attachments/assets/f77253e7-756b-465d-a380-94e97b554b51" />
+
+<img width="240" height="533" alt="Screenshot_20251127-200841" src="https://github.com/user-attachments/assets/c1b74682-714f-4651-b936-323315198bc7" />
+
+<img width="240" height="533" alt="Screenshot_20251127-200915" src="https://github.com/user-attachments/assets/7e0af4e0-6db3-4549-b763-6e1611b52482" />
+
+<img width="240" height="533" alt="Screenshot_20251127-200930" src="https://github.com/user-attachments/assets/eb3a7148-058f-437c-b4fa-827b947e662e" />
 
 
 
-<img width="240" height="533" alt="distanz_anzeige" src="https://github.com/user-attachments/assets/82707771-ffef-41b4-b36b-74b2922a50f7" />
 
 
 
-<img width="240" height="533" alt="portal_upload" src="https://github.com/user-attachments/assets/a16e618c-bdb6-4b7f-a238-eec1c43f9d72" />
 
 
 
-<img width="240" height="533" alt="aufgezeichnete_fahrten" src="https://github.com/user-attachments/assets/e7d3d742-fffa-4951-a6ae-42538b816cce" />
-
-
+# APK
+https://github.com/pnfzygrzgf-svg/ObsLiteRecorder/releases
 
 
 # OpenBikeSensor
