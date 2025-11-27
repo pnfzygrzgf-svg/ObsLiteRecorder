@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@color/white">
 
     <LinearLayout
         android:id="@+id/main"
@@ -18,6 +19,7 @@
             android:id="@+id/imgLogo"
             android:layout_width="96dp"
             android:layout_height="96dp"
+            android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher_round" />
@@ -27,8 +29,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/app_name"
-            android:textSize="24sp"
+            android:textSize="22sp"
             android:textStyle="bold"
+            android:textColor="@color/text_primary"
             android:layout_marginBottom="16dp" />
 
         <!-- Sektion: Aufnahme & USB -->
@@ -38,7 +41,10 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="true">
+            app:cardUseCompatPadding="false"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_soft"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -51,27 +57,24 @@
                     android:layout_height="wrap_content"
                     android:text="Aufnahme"
                     android:textStyle="bold"
-                    android:textSize="18sp" />
+                    android:textSize="18sp"
+                    android:textColor="@color/text_primary" />
 
+                <!-- Ein einziger Start/Stop-Button -->
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnStart"
+                    android:id="@+id/btnRecord"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Aufnahme starten"
-                    android:layout_marginTop="8dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnStop"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Aufnahme stoppen"
-                    android:layout_marginTop="8dp" />
+                    android:textAllCaps="false"
+                    android:layout_marginTop="12dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnUsb"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="OBS Lite verbinden"
+                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
 
                 <!-- USB-Status als kleiner, dezenter Text -->
@@ -81,6 +84,7 @@
                     android:layout_height="wrap_content"
                     android:text="USB: nicht verbunden"
                     android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
                     android:layout_marginTop="4dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -92,7 +96,10 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="true">
+            app:cardUseCompatPadding="false"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_soft"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -105,13 +112,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Lenkerbreite (cm)"
-                    android:textSize="16sp" />
+                    android:textSize="16sp"
+                    android:textColor="@color/text_primary" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Lenkerbreite (cm)"
-                    android:layout_marginTop="4dp">
+                    android:layout_marginTop="4dp"
+                    android:hint="Lenkerbreite (cm)">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etHandlebarWidth"
@@ -133,7 +141,10 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="true">
+            app:cardUseCompatPadding="false"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_soft"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -146,7 +157,8 @@
                     android:layout_height="wrap_content"
                     android:text="Sensorwerte"
                     android:textStyle="bold"
-                    android:textSize="18sp" />
+                    android:textSize="18sp"
+                    android:textColor="@color/text_primary" />
 
                 <!-- Links / Rechts nebeneinander -->
                 <LinearLayout
@@ -161,7 +173,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Links: -" />
+                        android:text="Links: -"
+                        android:textColor="@color/text_secondary" />
 
                     <TextView
                         android:id="@+id/tvRightDistance"
@@ -169,7 +182,8 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:gravity="end"
-                        android:text="Rechts: -" />
+                        android:text="Rechts: -"
+                        android:textColor="@color/text_secondary" />
                 </LinearLayout>
 
                 <!-- Überholabstand prominent -->
@@ -180,19 +194,23 @@
                     android:text="Überholabstand: -"
                     android:textSize="22sp"
                     android:textStyle="bold"
+                    android:textColor="@color/text_primary"
                     android:gravity="center_horizontal"
                     android:layout_marginTop="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- NEU: Sektion GPS & Karte -->
+        <!-- Sektion: GPS & Karte -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="true">
+            app:cardUseCompatPadding="false"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_soft"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -200,20 +218,19 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-
-
                 <TextView
                     android:id="@+id/tvGpsStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="GPS: keine Daten"
-                    android:textSize="14sp"
-                    android:layout_marginTop="8dp" />
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="4dp" />
 
                 <org.osmdroid.views.MapView
                     android:id="@+id/mapView"
                     android:layout_width="match_parent"
-                    android:layout_height="200dp"
+                    android:layout_height="220dp"
                     android:layout_marginTop="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -225,7 +242,10 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="true">
+            app:cardUseCompatPadding="false"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_soft"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -238,13 +258,15 @@
                     android:layout_height="wrap_content"
                     android:text="Daten / Upload"
                     android:textStyle="bold"
-                    android:textSize="18sp" />
+                    android:textSize="18sp"
+                    android:textColor="@color/text_primary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnDebugBin"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Letzte BIN prüfen"
+                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -252,6 +274,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Upload ins Portal"
+                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -259,6 +282,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Aufgezeichnete Fahrten"
+                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -269,7 +293,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/about_app_link"
-            android:textSize="20sp"
+            android:textSize="18sp"
+            android:textColor="@color/accent"
             android:layout_marginTop="24dp"
             android:layout_marginBottom="8dp"
             android:layout_gravity="center_horizontal"

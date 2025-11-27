@@ -1,11 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Basis-App-Theme: Material Design 3 -->
+    <!-- Basis-App-Theme: sehr clean, alles weiß -->
     <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Du kannst später noch eigene Farben setzen, aber wir lassen erstmal die Material-Defaults -->
-        <!-- Status-/Navigationsleiste optional leicht anpassen -->
-        <item name="android:statusBarColor">?attr/colorSurface</item>
-        <item name="android:navigationBarColor">?attr/colorSurface</item>
+
+        <!-- Fenster-Hintergrund -->
+        <item name="android:windowBackground">@color/white</item>
+
+        <!-- Material-Oberflächen ebenfalls weiß -->
+        <item name="colorSurface">@color/white</item>
+
+        <!-- Textfarben -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
+        <!-- Statusleiste: weiß + dunkle Icons -->
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Navigationsleiste: weiß + dunkle Icons -->
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
     <!-- Normales App-Theme (nach dem Splashscreen) -->
@@ -20,6 +35,10 @@
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/obs_splash_logo</item>
         <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+
+        <!-- Helle Navigationsleiste auch während des Splashscreens -->
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightNavigationBar">true</item>
 
         <!-- Nach dem Splashscreen -->
         <item name="postSplashScreenTheme">@style/Theme.ObsLiteRecorder</item>

@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Basisfarben -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-<color name="splash_background">#FFFFFF</color>
+
+    <!-- Clean UI Farben -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="border_soft">#E0E0E0</color>
+
+    <!-- Akzentfarbe (für Buttons etc.) -->
+    <color name="accent">#6750A4</color>
+
+    <!-- Splash-Hintergrund (jetzt auch weiß) -->
+    <color name="splash_background">@color/white</color>
 </resources>

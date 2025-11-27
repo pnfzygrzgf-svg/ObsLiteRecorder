@@ -30,6 +30,7 @@ import com.example.obsliterecorder.obslite.OBSLiteSession
 import com.example.obsliterecorder.proto.Event
 import com.example.obsliterecorder.util.CobsUtils
 import com.google.android.gms.location.*
+import com.google.android.material.button.MaterialButton
 import com.google.protobuf.InvalidProtocolBufferException
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
@@ -80,8 +81,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private var permissionIntent: PendingIntent? = null
 
     // UI
-    private lateinit var btnStart: Button
-    private lateinit var btnStop: Button
+    private lateinit var btnRecord: MaterialButton
     private lateinit var btnUsb: Button
     private lateinit var btnOpenUpload: Button
     private lateinit var btnShowFiles: Button
@@ -96,8 +96,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private var locationMarker: Marker? = null
     private var defaultLocationIcon: Drawable? = null
 
-    private var startOriginalTint: android.content.res.ColorStateList? = null
-    private var stopOriginalTint: android.content.res.ColorStateList? = null
+    private var recordOriginalTint: android.content.res.ColorStateList? = null
 
     private var isRecording: Boolean = false
 
@@ -167,8 +166,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         }
 
         // Views
-        btnStart = findViewById(R.id.btnStart)
-        btnStop = findViewById(R.id.btnStop)
+        btnRecord = findViewById(R.id.btnRecord)
         btnUsb = findViewById(R.id.btnUsb)
         btnOpenUpload = findViewById(R.id.btnOpenUpload)
         btnShowFiles = findViewById(R.id.btnShowFiles)
@@ -205,22 +203,21 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         mapView.controller.setZoom(18.0)
         mapView.controller.setCenter(GeoPoint(0.0, 0.0))
 
-        // Button-Farben
-        startOriginalTint = btnStart.backgroundTintList
-        stopOriginalTint = btnStop.backgroundTintList
+        // Button-Farbe merken (clean: Standardfarbe aus dem Theme)
+        recordOriginalTint = btnRecord.backgroundTintList
 
         // Lenkerbreite
         etHandlebarWidth.setText(loadHandlebarWidthCm().toString())
 
-        // Start/Stop
-        btnStart.setOnClickListener {
-            obsService?.startRecording()
-            isRecording = true
-            updateRecordingUi()
-        }
-        btnStop.setOnClickListener {
-            obsService?.stopRecording()
-            isRecording = false
+        // Start/Stop mit EINEM Button
+        btnRecord.setOnClickListener {
+            if (isRecording) {
+                obsService?.stopRecording()
+                isRecording = false
+            } else {
+                obsService?.startRecording()
+                isRecording = true
+            }
             updateRecordingUi()
         }
 
@@ -298,21 +295,21 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         }
     }
 
-    // --- Aufnahme-UI (Button-Farben) ---
+    // --- Aufnahme-UI (Button & Map-Icon) ---
     private fun updateRecordingUi() {
         if (isRecording) {
-            btnStart.backgroundTintList =
-                android.content.res.ColorStateList.valueOf(Color.parseColor("#4CAF50"))
-            btnStop.backgroundTintList =
+            // Zustand: Aufnahme läuft -> roter Button + "stoppen"
+            btnRecord.text = "Aufnahme stoppen"
+            btnRecord.backgroundTintList =
                 android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336"))
-            btnStart.isEnabled = false
-            btnStop.isEnabled = true
         } else {
-            btnStart.backgroundTintList = startOriginalTint
-            btnStop.backgroundTintList = stopOriginalTint
-            btnStart.isEnabled = true
-            btnStop.isEnabled = true
+            // Zustand: keine Aufnahme -> neutraler Button + "starten"
+            btnRecord.text = "Aufnahme starten"
+            btnRecord.backgroundTintList = recordOriginalTint
         }
+
+        // Marker-Farbe/Icon wird im Map-Update gesetzt (abhängig von isRecording)
+        // -> kein zusätzliches Handling hier nötig
     }
 
     // --- GPS-Status / Map-Update ---
