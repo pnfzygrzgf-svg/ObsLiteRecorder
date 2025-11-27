@@ -1,9 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Basis-App-Theme -->
+    <!-- Basis-App-Theme: Material Design 3 -->
     <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Hier könntest du Farben etc. anpassen -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Du kannst später noch eigene Farben setzen, aber wir lassen erstmal die Material-Defaults -->
+        <!-- Status-/Navigationsleiste optional leicht anpassen -->
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
     </style>
 
     <!-- Normales App-Theme (nach dem Splashscreen) -->

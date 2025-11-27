@@ -16,7 +16,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ObsLiteRecorder">
+        android:theme="@style/Theme.ObsLiteRecorder"
+        tools:targetApi="31">
 
         <!-- Haupt-Activity (Launcher) mit Splash-Theme -->
         <activity
@@ -29,18 +30,18 @@
             </intent-filter>
         </activity>
 
-        <!-- Über diese App – erbt das normale App-Theme ohne Splash -->
+        <!-- Über diese App – nutzt das App-Theme -->
         <activity
             android:name=".AboutActivity"
             android:label="@string/about_app_title"
             android:exported="false" />
 
-        <!-- Upload-Seite – ebenfalls normales App-Theme -->
+        <!-- Upload-Seite – ebenfalls App-Theme -->
         <activity
             android:name=".UploadActivity"
             android:exported="false" />
 
-        <!-- Neue Seite: Aufgezeichnete Fahrten -->
+        <!-- Seite: Aufgezeichnete Fahrten -->
         <activity
             android:name=".RecordedFilesActivity"
             android:label="Aufgezeichnete Fahrten"

@@ -13,7 +13,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -53,6 +53,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("com.google.android.material:material:1.12.0")
 
     // NEU: OkHttp für den Upload ins OBS-Portal
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

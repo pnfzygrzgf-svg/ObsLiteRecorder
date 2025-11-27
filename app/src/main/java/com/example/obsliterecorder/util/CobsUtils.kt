@@ -31,6 +31,7 @@ object CobsUtils {
             while (index < data.size && code < 0xFF) {
                 val b = data[index++]
                 if (b.toInt() == 0) {
+                    // 0x00 beendet diesen Block – nächster Code-Block
                     break
                 }
                 out.add(b)
@@ -45,7 +46,12 @@ object CobsUtils {
 
     /**
      * COBS-Decode für einen Block.
-     * Der übergebene Block darf am Ende ein 0x00 enthalten – dieses wird ignoriert.
+     *
+     * Der übergebene Block darf am Ende ein 0x00 enthalten – dieses wird als Frame-Delimiter
+     * ignoriert und nicht mit dekodiert.
+     *
+     * Erwartet:
+     * - genau einen COBS-Frame, wie er aus dem Stream kommt (Optional: mit abschließendem 0x00).
      */
     fun decode(data: ByteArray): ByteArray {
         if (data.isEmpty()) return data
@@ -54,12 +60,13 @@ object CobsUtils {
         var index = 0
 
         // Wenn das letzte Byte 0x00 ist (Frame-Delimiter), ignorieren
-        val effectiveLength = if (data.last().toInt() == 0x00) data.size - 1 else data.size
+        val effectiveLength =
+            if (data.last().toInt() == 0x00) data.size - 1 else data.size
 
         while (index < effectiveLength) {
             val code = data[index].toInt() and 0xFF
             if (code == 0) {
-                // Ungültiger Frame – abbrechen
+                // Ungültiger Frame – abbrechen (Rest wird verworfen)
                 break
             }
             index++
@@ -70,7 +77,8 @@ object CobsUtils {
                 index++
             }
 
-            // Wenn der Code < 0xFF und wir noch nicht am Ende sind, fügen wir ein implizites 0x00 ein
+            // Wenn der Code < 0xFF und wir noch nicht am Ende sind,
+            // fügen wir ein implizites 0x00 ein (entspricht "gestopftem" 0-Byte im Original).
             if (code < 0xFF && index < effectiveLength) {
                 out.add(0)
             }
@@ -81,6 +89,11 @@ object CobsUtils {
 
     /**
      * Komfortvariante: LinkedList/Collection<Byte> dekodieren.
+     *
+     * Wird z.B. von MainActivity verwendet, wo COBS-Frames als LinkedList<Byte>
+     * gesammelt werden (inkl. möglichem 0x00-Delimiter am Ende).
+     *
+     * Delegiert einfach auf decode(ByteArray), inkl. Handling des optionalen 0x00.
      */
     fun decode(bytes: Collection<Byte>): ByteArray {
         val arr = ByteArray(bytes.size)

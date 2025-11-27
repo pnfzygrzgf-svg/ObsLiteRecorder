@@ -1,3 +1,4 @@
+// file: com/example/obsliterecorder/obslite/OBSLiteSession.kt
 package com.example.obsliterecorder.obslite
 
 import android.content.Context
@@ -12,6 +13,8 @@ import com.google.protobuf.InvalidProtocolBufferException
 import java.util.LinkedList
 import java.util.TreeSet
 import java.util.concurrent.ConcurrentLinkedDeque
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 class OBSLiteSession(private val context: Context) {
 
@@ -23,45 +26,35 @@ class OBSLiteSession(private val context: Context) {
     private var lastLat: Double = 0.0
     private var lastLon: Double = 0.0
 
-    // Statt alle Events im RAM zu halten, nur noch Statistiken:
     private var totalBytesWritten: Int = 0
     private var totalEvents: Int = 0
 
-    // Letzter Median beim Knopfdruck (in cm), null wenn noch keiner vorhanden
     var lastMedianAtPressCm: Int? = null
         private set
 
-    // COBS-Puffer für USB-Daten
+    // Beibehalten: Typ & öffentliche API unverändert
     val byteListQueue: ConcurrentLinkedDeque<LinkedList<Byte>> = ConcurrentLinkedDeque()
     var lastByteRead: Byte? = null
 
-    // Lenkerbreite aus SharedPreferences (in cm)
     private val prefs = context.getSharedPreferences("obslite_prefs", Context.MODE_PRIVATE)
 
     private fun getHandlebarWidthCm(): Int {
-        // Default: 60 cm, falls noch nichts gespeichert ist
         return prefs.getInt("handlebar_width_cm", 60)
     }
 
-    // Gleitender Median (in cm) über die zuletzt gemessenen Distanzen
     private val movingMedian = MovingMedian()
 
-    // --- Debug-Helfer für den Service ---
+    // --- Debug-Helfer ---
     fun debugGetCompleteBytesSize(): Int = totalBytesWritten
     fun debugGetEventCount(): Int = totalEvents
     fun debugGetQueueSize(): Int = byteListQueue.size
 
     /**
-     * Verarbeitet genau EIN komplettes COBS-Paket (byteListQueue.first),
-     * erzeugt daraus Events (DistanceMeasurement, UserInput, Geolocation, …)
-     * und gibt die COBS-kodierten Bytes dieser Events zurück.
-     *
-     * Alle Events bekommen genau EINE Zeitquelle:
-     *   - Smartphone-Zeit (UNIX, source_id = 3)
-     *
-     * Rückgabe:
-     *  - ByteArray der neu erzeugten Events (Cobs-encodiert, inkl. 0x00-Terminatoren)
-     *  - null, falls nichts erzeugt wurde oder ein Fehler auftrat
+     * Verarbeitet genau EIN komplettes COBS-Paket (Queue-Kopf).
+     * Fixes:
+     *  - Atomare Entnahme via pollFirst()
+     *  - Dekodierung nur bei vorhandenem 0x00 (vollständiges Frame)
+     *  - Generic-Event: keine doppelten Time-Felder (merge -> clearTime -> addTime)
      */
     fun handleEvent(
         lat: Double,
@@ -69,61 +62,77 @@ class OBSLiteSession(private val context: Context) {
         altitude: Double,
         accuracy: Float
     ): ByteArray? {
-        if (byteListQueue.isEmpty()) {
-            Log.w(TAG, "handleEvent(): byteListQueue is empty, nichts zu tun.")
+        // Atomar entnehmen
+        val rawList: LinkedList<Byte> = byteListQueue.pollFirst() ?: run {
+            if (Log.isLoggable(TAG, Log.WARN)) Log.w(TAG, "handleEvent(): byteListQueue is empty.")
             return null
         }
 
-        val rawList = byteListQueue.first
-        Log.d(
-            TAG,
-            "handleEvent(): queueSize=${byteListQueue.size}, firstChunkSize=${rawList.size}, lat=$lat, lon=$lon"
-        )
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(
+                TAG,
+                "handleEvent(): polled frame, queueSize=${byteListQueue.size}, firstChunkSize=${rawList.size}, lat=$lat, lon=$lon"
+            )
+        }
+
+        // Nur vollständige Frames dekodieren (wichtig für Robustheit)
+        val hasTerminator = rawList.any { it.toInt() == 0x00 }
+        if (!hasTerminator) {
+            // Frame ist unvollständig → zurücklegen und später erneut versuchen
+            byteListQueue.addFirst(rawList)
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "handleEvent(): incomplete frame (no 0x00), re-queued; queueSize=${byteListQueue.size}")
+            }
+            return null
+        }
 
         val decodedData = try {
             CobsUtils.decode(rawList)
         } catch (e: Exception) {
-            Log.e(TAG, "handleEvent(): Fehler beim COBS-Decode, Chunk wird verworfen.", e)
-            byteListQueue.removeFirst()
+            // Decode-Fehler: Frame verwerfen (telemetry bleibt erhalten)
+            Log.e(TAG, "handleEvent(): COBS decode failed, dropping frame.", e)
             return null
         }
 
-        Log.d(TAG, "handleEvent(): decodedData length=${decodedData.size}")
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "handleEvent(): decodedData length=${decodedData.size}")
+        }
 
-        // Hier sammeln wir alle Bytes, die während dieses handleEvent-Aufrufs erzeugt werden
         val outBytes = ArrayList<Byte>()
 
         try {
             val obsEvent: Event = Event.parseFrom(decodedData)
-            Log.d(TAG, "handleEvent(): Event erfolgreich geparst")
+            if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "handleEvent(): Event parsed")
 
             val currentTimeMillis: Long = System.currentTimeMillis()
 
-            // Startzeit aus erstem OBS-Zeitstempel übernehmen (falls vorhanden)
             if (startTime == -1L && obsEvent.timeCount > 0) {
                 startTime = obsEvent.getTime(0).seconds
-                Log.d(TAG, "handleEvent(): startTime vom OBS übernommen: $startTime")
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "handleEvent(): startTime from OBS: $startTime")
+                }
             }
 
-            // Zeit vom Smartphone (UNIX, für's Portal wichtig)
             val smartphoneTime = Time.newBuilder()
                 .setSeconds(currentTimeMillis / 1000)
                 .setNanoseconds(((currentTimeMillis % 1000) * 1_000_000).toInt())
-                .setSourceId(3) // 3 = Smartphone
+                .setSourceId(3)
                 .setReference(Time.Reference.UNIX)
                 .build()
 
-            // Falls GPS-Position neu: extra Geolocation-Event erzeugen
+            // GPS-Delta → extra Geolocation-Event
             if (lat != lastLat || lon != lastLon) {
                 val geolocation: Geolocation = Geolocation.newBuilder()
                     .setLatitude(lat)
                     .setLongitude(lon)
                     .setAltitude(altitude)
+                    // Achtung: accuracy != HDOP; Schema ggf. später korrigieren
                     .setHdop(accuracy)
                     .build()
 
                 val gpsEvent = Event.newBuilder()
                     .setGeolocation(geolocation)
+                    .clearTime()               // nur Smartphone-Zeit beilegen
                     .addTime(smartphoneTime)
                     .build()
 
@@ -132,28 +141,30 @@ class OBSLiteSession(private val context: Context) {
                 totalBytesWritten += enc.size
                 totalEvents++
 
-                Log.d(
-                    TAG,
-                    "handleEvent(): GPS-Event erzeugt, encodedBytes=${enc.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "handleEvent(): GPS event, encodedBytes=${enc.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                    )
+                }
 
                 lastLat = lat
                 lastLon = lon
             }
 
-            // === DISTANCE MEASUREMENT (Abstand) ===
+            // === DISTANCE MEASUREMENT ===
             if (obsEvent.hasDistanceMeasurement()) {
 
                 val rawDm = obsEvent.distanceMeasurement
                 val rawMeters = rawDm.distance
 
-                Log.d(
-                    TAG,
-                    "handleEvent(): DistanceMeasurement-Event, sourceId=${rawDm.sourceId}, raw=${rawMeters}m"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "handleEvent(): DM event, sourceId=${rawDm.sourceId}, raw=${rawMeters}m")
+                }
 
-                // 1) Event mit *ROHEN* Metern so speichern
+                // (1) Rohwert-Event (nur Smartphone-Zeit)
                 val dmEvent = Event.newBuilder()
+                    .clearTime()
                     .addTime(smartphoneTime)
                     .setDistanceMeasurement(rawDm)
                     .build()
@@ -163,34 +174,37 @@ class OBSLiteSession(private val context: Context) {
                 totalBytesWritten += encDm.size
                 totalEvents++
 
-                Log.d(
-                    TAG,
-                    "handleEvent(): DM-Event gespeichert, encodedBytes=${encDm.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "handleEvent(): DM saved, encodedBytes=${encDm.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                    )
+                }
 
-                // 2) Für den gleitenden Median die Lenkerbreite berücksichtigen (in cm)
-                val handlebarCm = getHandlebarWidthCm()         // z.B. 60
-                val distanceCm = (rawMeters * 100.0f).toInt()   // m -> cm
-                val correctedCm = (distanceCm - handlebarCm / 2).coerceAtLeast(0)
-
-                // nur für left sensor (sourceId == 1) Median berechnen
+                // (2) Median füttern (nur left sensor sourceId==1), metrische Korrektur runden
                 if (rawDm.sourceId == 1) {
+                    val handlebarCmHalf = getHandlebarWidthCm() / 2.0
+                    val distanceCm = (rawMeters * 100.0).roundToInt()
+                    val correctedCm = max(0, (distanceCm - handlebarCmHalf).roundToInt())
                     movingMedian.newValue(correctedCm)
                 }
 
-                Log.d(
-                    TAG,
-                    "handleEvent(): DM event: raw=${rawMeters}m, handlebar=${handlebarCm}cm, corrected=${correctedCm}cm, medianHas=${movingMedian.hasMedian()}"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "handleEvent(): DM medianHas=${movingMedian.hasMedian()}"
+                    )
+                }
 
-                // === USER INPUT (Knopf) ===
+                // === USER INPUT ===
             } else if (obsEvent.hasUserInput()) {
 
                 val ui = obsEvent.userInput
-                Log.d(TAG, "handleEvent(): UserInput event: $ui")
+                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "handleEvent(): UserInput: $ui")
 
-                // 1) UserInput-Event *immer* speichern
+                // (1) UserInput-Event
                 val uiEvent = Event.newBuilder()
+                    .clearTime()
                     .addTime(smartphoneTime)
                     .setUserInput(ui)
                     .build()
@@ -200,25 +214,25 @@ class OBSLiteSession(private val context: Context) {
                 totalBytesWritten += encUi.size
                 totalEvents++
 
-                Log.d(
-                    TAG,
-                    "handleEvent(): UserInput-Event gespeichert, encodedBytes=${encUi.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "handleEvent(): UserInput saved, encodedBytes=${encUi.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                    )
+                }
 
-                // 2) Zusätzlich ein Distanz-Event zum Knopfzeitpunkt speichern,
-                //    falls wir schon einen Median haben.
+                // (2) Distanz am Knopfzeitpunkt (nur wenn Median existiert)
                 if (movingMedian.hasMedian()) {
                     val medianCm = movingMedian.median
-
-                    // Für die UI merken (Überholabstand)
                     lastMedianAtPressCm = medianCm
 
                     val dmAtPress = DistanceMeasurement.newBuilder()
                         .setSourceId(1)
-                        .setDistance(medianCm / 100.0f) // cm -> m
+                        .setDistance(medianCm / 100.0f)
                         .build()
 
                     val dmPressEvent = Event.newBuilder()
+                        .clearTime()
                         .addTime(smartphoneTime)
                         .setDistanceMeasurement(dmAtPress)
                         .build()
@@ -228,19 +242,23 @@ class OBSLiteSession(private val context: Context) {
                     totalBytesWritten += encDmPress.size
                     totalEvents++
 
-                    Log.d(
-                        TAG,
-                        "handleEvent(): Distance-at-press-Event gespeichert: median=${medianCm}cm -> ${dmAtPress.distance}m, encodedBytes=${encDmPress.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
-                    )
+                    if (Log.isLoggable(TAG, Log.DEBUG)) {
+                        Log.d(
+                            TAG,
+                            "handleEvent(): DM@press saved: ${medianCm}cm -> ${dmAtPress.distance}m, encodedBytes=${encDmPress.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                        )
+                    }
                 } else {
-                    Log.d(TAG, "handleEvent(): UserInput: no median yet, no distance-at-press event")
+                    if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "handleEvent(): UserInput: no median yet")
                 }
 
-                // === ALLE ANDEREN EVENT-TYPEN ===
+                // === GENERIC ===
             } else {
+                // WICHTIG: keine doppelten Zeiten – nur Smartphone-Zeit setzen
                 val genericEvent = Event.newBuilder()
+                    .mergeFrom(obsEvent)
+                    .clearTime()
                     .addTime(smartphoneTime)
-                    .mergeFrom(obsEvent) // andere Felder übernehmen
                     .build()
 
                 val encGen = encodeEvent(genericEvent)
@@ -248,31 +266,24 @@ class OBSLiteSession(private val context: Context) {
                 totalBytesWritten += encGen.size
                 totalEvents++
 
-                Log.d(
-                    TAG,
-                    "handleEvent(): Other event type stored, encodedBytes=${encGen.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "handleEvent(): Other type saved, encodedBytes=${encGen.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                    )
+                }
             }
 
         } catch (e: InvalidProtocolBufferException) {
             Log.e(TAG, "Invalid protobuf in handleEvent", e)
-        } finally {
-            // erstes Paket aus Queue entfernen – sonst Endlosschleife
-            if (byteListQueue.isNotEmpty()) {
-                byteListQueue.removeFirst()
-            }
-            Log.d(TAG, "handleEvent(): Paket entfernt, neue queueSize=${byteListQueue.size}")
         }
 
-        return if (outBytes.isNotEmpty()) {
-            outBytes.toByteArray()
-        } else {
-            null
-        }
+        return if (outBytes.isNotEmpty()) outBytes.toByteArray() else null
     }
 
     /**
      * Prüfen, ob im ersten Byte-Block ein 0x00 vorkommt (COBS-Paket komplett).
+     * Hinweis: handleEvent() prüft zusätzlich den polled Frame nochmals.
      */
     fun completeCobsAvailable(): Boolean {
         val first = byteListQueue.peekFirst() ?: return false
@@ -283,84 +294,70 @@ class OBSLiteSession(private val context: Context) {
     }
 
     /**
-     * Bytes vom USB-Stream in COBS-Pakete aufteilen.
-     * Jedes Element der Queue entspricht: [COBS-kodiertes Event + 0x00 Terminator]
+     * Bytes vom USB-Stream in COBS-Pakete aufteilen (API unverändert).
      */
     fun fillByteList(data: ByteArray?) {
         if (data == null) return
         for (datum in data) {
-            // neues Paket, wenn letztes Byte 0x00 war oder es noch kein Paket gibt
             if (lastByteRead?.toInt() == 0x00 || byteListQueue.isEmpty()) {
                 val newByteList = LinkedList<Byte>()
                 newByteList.add(datum)
                 byteListQueue.add(newByteList)
             } else {
-                // aktuelles Paket fortsetzen
                 byteListQueue.last.add(datum)
             }
             lastByteRead = datum
         }
-        Log.d(
-            TAG,
-            "fillByteList(): added ${data.size} bytes, queueSize=${byteListQueue.size}, lastByteRead=0x${
-                String.format(
-                    "%02X",
-                    lastByteRead
-                )
-            }"
-        )
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(
+                TAG,
+                "fillByteList(): added ${data.size} bytes, queueSize=${byteListQueue.size}, lastByteRead=0x${
+                    String.format("%02X", lastByteRead)
+                }"
+            )
+        }
     }
 
     /**
-     * Event -> COBS-kodiertes Byte-Array:
-     *
-     *   [ COBS(event.toByteArray()) + 0x00 ]
-     *
-     * encode2() liefert NUR die COBS-Daten, hier fügen wir den 0x00-Delimiter an.
+     * Event -> COBS-kodiertes Byte-Array inkl. 0x00-Delimiter.
      */
     private fun encodeEvent(event: Event?): Collection<Byte> {
         if (event == null) {
-            Log.w(TAG, "encodeEvent(): event ist null, nichts zu encodieren.")
+            Log.w(TAG, "encodeEvent(): event is null.")
             return emptyList()
         }
 
         val raw = event.toByteArray()
-        Log.d(TAG, "encodeEvent(): raw size=${raw.size} bytes")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "encodeEvent(): raw size=${raw.size} bytes")
 
-        val encoded = CobsUtils.encode2(raw) // ohne 0x00
+        val encoded = CobsUtils.encode2(raw)
         val out = ArrayList<Byte>(encoded.size + 1)
         out.addAll(encoded)
-        out.add(0.toByte()) // <- WICHTIG: Frame-Delimiter anhängen!
+        out.add(0.toByte()) // Frame-Delimiter
 
-        Log.d(
-            TAG,
-            "encodeEvent(): encoded size=${out.size} bytes (inkl. 0x00-Terminator)"
-        )
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "encodeEvent(): encoded size=${out.size} bytes (with 0x00)")
+        }
         return out
     }
 
     /**
-     * Früher wurde hier der komplette Inhalt der Session zurückgegeben.
-     * Im Streaming-Modus wird nichts mehr im RAM gesammelt, daher immer leer.
+     * Streaming-Modus: kein RAM-Accumulation.
      */
     fun getCompleteEvents(): ByteArray {
-        Log.w(
-            TAG,
-            "getCompleteEvents(): Streaming-Modus aktiv – keine Events im RAM. Rückgabe ist immer leer."
-        )
+        Log.w(TAG, "getCompleteEvents(): streaming mode – always empty.")
         return ByteArray(0)
     }
 
     /**
-     * Zusätzliche GPS-Events aus der Smartphone-Location einfügen.
-     * Rückgabe: COBS-kodierte Bytes (inkl. 0x00), bereit zum Schreiben in die Datei.
+     * Zusätzliche GPS-Events aus Smartphone-Location.
      */
     fun addGPSEvent(location: Location): ByteArray {
         val geolocation: Geolocation = Geolocation.newBuilder()
             .setLatitude(location.latitude)
             .setLongitude(location.longitude)
             .setAltitude(location.altitude)
-            .setHdop(location.accuracy)
+            .setHdop(location.accuracy) // Achtung: Semantik siehe Kommentar in handleEvent()
             .build()
 
         val time: Time = Time.newBuilder()
@@ -372,6 +369,7 @@ class OBSLiteSession(private val context: Context) {
 
         val gpsEvent = Event.newBuilder()
             .setGeolocation(geolocation)
+            .clearTime()
             .addTime(time)
             .build()
 
@@ -379,16 +377,19 @@ class OBSLiteSession(private val context: Context) {
         totalBytesWritten += enc.size
         totalEvents++
 
-        Log.d(
-            TAG,
-            "addGPSEvent(): GPS-Event hinzugefügt, encodedBytes=${enc.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
-        )
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(
+                TAG,
+                "addGPSEvent(): encodedBytes=${enc.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+            )
+        }
 
         return enc.toByteArray()
     }
 
     /**
      * Gleitender Median für die Distanzwerte (in cm).
+     * Belassen (nur kleine Korrekturen bei Rundung/Log).
      */
     class MovingMedian {
         private val TAG = "MovingMedian_LOG"
@@ -399,7 +400,6 @@ class OBSLiteSession(private val context: Context) {
 
         fun hasMedian(): Boolean = distanceArray.size >= windowSize
 
-        // Pair-Klasse für Wert + Index
         class Pair(private var value: Int, private var index: Int) : Comparable<Pair?> {
             override fun compareTo(other: Pair?): Int {
                 return if (index == other?.index) {
@@ -429,7 +429,7 @@ class OBSLiteSession(private val context: Context) {
             window: Int
         ): Int {
             return if (window % 2 == 0) {
-                (((minSet.last()!!.value() + maxSet.first()!!.value()) / 2.0).toInt())
+                (((minSet.last()!!.value() + maxSet.first()!!.value()) / 2.0).roundToInt())
             } else {
                 if (minSet.size > maxSet.size) minSet.last()!!.value() else maxSet.first()!!.value()
             }
@@ -438,7 +438,6 @@ class OBSLiteSession(private val context: Context) {
         private fun findMedian(arr: ArrayList<Int>, k: Int): ArrayList<Int> {
             val minSet = TreeSet<Pair?>()
             val maxSet = TreeSet<Pair?>()
-
             val result: ArrayList<Int> = ArrayList()
 
             val windowPairs = arrayOfNulls<Pair>(k)
@@ -493,7 +492,9 @@ class OBSLiteSession(private val context: Context) {
             if (distanceArray.size >= windowSize) {
                 val medians = findMedian(distanceArray, windowSize)
                 median = medians.last()
-                Log.d(TAG, "new median = $median cm (from ${distanceArray.size} samples)")
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "new median = $median cm (from ${distanceArray.size} samples)")
+                }
             }
         }
     }

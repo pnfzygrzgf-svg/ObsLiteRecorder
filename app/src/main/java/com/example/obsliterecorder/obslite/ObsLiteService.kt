@@ -1,9 +1,12 @@
+// file: com/example/obsliterecorder/obslite/ObsLiteService.kt
 package com.example.obsliterecorder.obslite
 
 import android.app.Service
 import android.content.Intent
 import android.location.Location
 import android.os.Binder
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
 import android.util.Log
 
@@ -13,122 +16,123 @@ class ObsLiteService : Service() {
         const val TAG = "ObsLiteService_LOG"
     }
 
-    // Binder für die Activity (MainActivity bindet sich an den Service)
     inner class LocalBinder : Binder() {
         fun getService(): ObsLiteService = this@ObsLiteService
     }
 
     private val binder = LocalBinder()
 
-    // Session verarbeitet Events (COBS -> Proto -> korrigierte Distanzen -> COBS)
-    // und liefert COBS-kodierte Bytes zurück
     private lateinit var obsSession: OBSLiteSession
-
-    // FileWriter schreibt während der Fahrt fortlaufend in eine .bin
     private lateinit var fileWriter: OBSLiteFileWriter
 
-    // Merkt sich, ob gerade aufgezeichnet wird
-    private var isRecording: Boolean = false
+    @Volatile private var isRecording: Boolean = false
+    @Volatile private var lastLocation: Location? = null
 
-    // Letzte bekannte GPS-Position (für handleEvent)
-    private var lastLocation: Location? = null
+    // Single-threaded I/O: garantiert Reihenfolge, erspart synchronized
+    private lateinit var ioThread: HandlerThread
+    private lateinit var ioHandler: Handler
 
-    // Überholabstand (Median beim letzten Knopfdruck) an die Activity liefern
     fun getLastMedianAtPressCm(): Int? = obsSession.lastMedianAtPressCm
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "onCreate()")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onCreate()")
         obsSession = OBSLiteSession(this)
         fileWriter = OBSLiteFileWriter(this)
+
+        ioThread = HandlerThread("obs-io")
+        ioThread.start()
+        ioHandler = Handler(ioThread.looper)
     }
 
     override fun onBind(intent: Intent?): IBinder {
-        Log.d(TAG, "onBind()")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onBind()")
         return binder
     }
 
-    /**
-     * Wird von MainActivity aufgerufen, wenn der Start-Button gedrückt wird.
-     */
     fun startRecording() {
         if (isRecording) {
-            Log.d(TAG, "startRecording(): already recording")
+            if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "startRecording(): already recording")
             return
         }
-        Log.d(TAG, "startRecording()")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "startRecording()")
 
-        // Neue Session für diese Fahrt (damit Statistiken/State frisch sind)
-        obsSession = OBSLiteSession(this)
-
-        // Neue Datei anlegen
-        fileWriter.startSession()
-
-        isRecording = true
-        Log.d(
-            TAG,
-            "startRecording(): isRecording=$isRecording, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
-        )
+        // Alles auf IO-Thread ausführen, um Reihenfolge zu garantieren
+        ioHandler.post {
+            try {
+                // frische Session für Fahrt
+                obsSession = OBSLiteSession(this)
+                // Datei öffnen
+                fileWriter.startSession()
+                isRecording = true
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "startRecording(): isRecording=$isRecording, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "startRecording(): failed to start session", e)
+                isRecording = false
+            }
+        }
     }
 
-    /**
-     * Wird von MainActivity aufgerufen, wenn der Stop-Button gedrückt wird.
-     * Im Streaming-Modus ist hier nur noch das saubere Schließen der Datei nötig.
-     */
     fun stopRecording() {
         if (!isRecording) {
-            Log.d(TAG, "stopRecording(): not recording")
+            if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording(): not recording")
             return
         }
-        Log.d(TAG, "stopRecording()")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording()")
 
-        try {
-            // Alle Events wurden bereits während der Aufnahme in die Datei geschrieben.
-            fileWriter.finishSession()
-            Log.d(
-                TAG,
-                "stopRecording(): file closed. sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "stopRecording(): Fehler beim Schließen der Datei", e)
-        } finally {
-            isRecording = false
-            Log.d(TAG, "stopRecording(): isRecording=$isRecording")
+        ioHandler.post {
+            try {
+                fileWriter.finishSession()
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(
+                        TAG,
+                        "stopRecording(): file closed. sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "stopRecording(): error closing file", e)
+            } finally {
+                isRecording = false
+                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording(): isRecording=$isRecording")
+            }
         }
     }
 
     /**
-     * Wird von MainActivity aufgerufen, wenn neue USB-Daten vom OBS Lite ankommen.
-     * (MainActivity ruft das aus onNewData(...) des SerialInputOutputManager auf)
+     * USB-Daten vom OBS Lite; wird ggf. vom Serial-Callback (Main/UI-Thread) aufgerufen.
+     * Wir verschieben sofort auf den IO-Thread.
      */
     fun onUsbData(data: ByteArray) {
-        Log.d(TAG, "onUsbData(): ${data.size} Bytes, isRecording=$isRecording")
-
-        // Rohdaten in Session-COBS-Puffer schieben
-        obsSession.fillByteList(data)
-        Log.d(
-            TAG,
-            "onUsbData(): nach fillByteList -> queueSize=${obsSession.debugGetQueueSize()}"
-        )
-
-        if (!isRecording) {
-            // Wenn nicht aufgezeichnet wird, nur für Live-Preview in MainActivity interessant
-            Log.d(TAG, "onUsbData(): not recording, Session wird nicht in Datei geschrieben")
-            return
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "onUsbData(): ${data.size} bytes, isRecording=$isRecording")
         }
 
-        try {
+        ioHandler.post {
+            // Rohdaten in Session-COBS-Puffer schieben
+            obsSession.fillByteList(data)
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "onUsbData(): after fillByteList -> queueSize=${obsSession.debugGetQueueSize()}")
+            }
+
+            if (!isRecording) {
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "onUsbData(): not recording, skip file write")
+                }
+                return@post
+            }
+
             var handledCount = 0
-            // So lange komplette COBS-Pakete vorhanden sind, Events erzeugen
+            val maxEvents = 10_000 // verhindert Endlosschleifen bei korrupten Streams
+            val startNs = System.nanoTime()
+            val maxDurationNs = 50_000_000L // ~50ms pro Batch
+
             while (obsSession.completeCobsAvailable()) {
-                val loc = lastLocation
-
-                Log.d(
-                    TAG,
-                    "onUsbData(): completeCobsAvailable=true, handledCount=$handledCount, queueSize=${obsSession.debugGetQueueSize()}"
-                )
-
-                // handleEvent liefert jetzt die COBS-kodierten Bytes der erzeugten Events zurück
+                val loc: Location? = lastLocation
                 val bytes: ByteArray? = if (loc != null) {
                     obsSession.handleEvent(
                         lat = loc.latitude,
@@ -137,8 +141,7 @@ class ObsLiteService : Service() {
                         accuracy = loc.accuracy
                     )
                 } else {
-                    // Falls noch keine GPS-Position vorhanden ist, Dummy-Werte
-                    Log.w(TAG, "onUsbData(): keine gültige Location, verwende Dummy-Werte")
+                    // Keine Location verfügbar – neutraler Fallback
                     obsSession.handleEvent(
                         lat = 0.0,
                         lon = 0.0,
@@ -147,73 +150,71 @@ class ObsLiteService : Service() {
                     )
                 }
 
-                // Wenn Events erzeugt wurden: sofort in die Datei schreiben
                 if (bytes != null && bytes.isNotEmpty()) {
-                    synchronized(fileWriter) {
+                    try {
                         fileWriter.writeSessionData(bytes)
+                        if (Log.isLoggable(TAG, Log.DEBUG)) {
+                            Log.d(
+                                TAG,
+                                "onUsbData(): wrote ${bytes.size} bytes, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "onUsbData(): write failed", e)
+                        // Schreibfehler nicht in Endlosschleife laufen lassen
+                        break
                     }
-                    Log.d(
-                        TAG,
-                        "onUsbData(): ${bytes.size} Bytes in Datei geschrieben, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
-                    )
                 }
 
                 handledCount++
-                Log.d(
-                    TAG,
-                    "onUsbData(): nach handleEvent -> handledCount=$handledCount, queueSize=${obsSession.debugGetQueueSize()}"
-                )
-
-                // Sicherheitsbremse
-                if (handledCount > 1000) {
-                    Log.e(
-                        TAG,
-                        "onUsbData(): Sicherheitsabbruch nach 1000 Events, evtl. Queue-Problem."
-                    )
+                if (handledCount >= maxEvents) {
+                    Log.e(TAG, "onUsbData(): safety stop after $handledCount events")
+                    break
+                }
+                if (System.nanoTime() - startNs > maxDurationNs) {
+                    // Batch begrenzen, um UI/andere Tasks nicht zu verhungern
+                    if (Log.isLoggable(TAG, Log.DEBUG)) {
+                        Log.d(TAG, "onUsbData(): batching stop after ${handledCount} events / ~50ms")
+                    }
                     break
                 }
             }
 
-            Log.d(TAG, "onUsbData(): handledCount=$handledCount")
-        } catch (e: Exception) {
-            Log.e(TAG, "onUsbData(): Fehler beim Verarbeiten der COBS-Pakete", e)
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "onUsbData(): handledCount=$handledCount, queueNow=${obsSession.debugGetQueueSize()}")
+            }
         }
     }
 
     /**
-     * Wird von MainActivity bei jedem neuen GPS-Fix aufgerufen.
+     * Wird bei jedem neuen GPS-Fix aufgerufen.
+     * Wichtig: Kein zusätzliches GPS-Event schreiben, um Duplikate zu vermeiden.
+     * Die Session erzeugt Geolocation-Events beim Positionswechsel in handleEvent().
      */
     fun onLocationChanged(location: Location) {
         lastLocation = location
-        Log.d(
-            TAG,
-            "onLocationChanged(): isRecording=$isRecording, lat=${location.latitude}, lon=${location.longitude}, acc=${location.accuracy}"
-        )
-
-        // WICHTIG: GPS-Event explizit in die Session schreiben, wenn aufgenommen wird
-        if (isRecording) {
-            // addGPSEvent liefert jetzt direkt die COBS-kodierten Bytes zurück
-            val bytes = obsSession.addGPSEvent(location)
-            synchronized(fileWriter) {
-                fileWriter.writeSessionData(bytes)
-            }
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(
                 TAG,
-                "onLocationChanged(): GPS-Event geschrieben -> bytes=${bytes.size}, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
+                "onLocationChanged(): rec=$isRecording, lat=${location.latitude}, lon=${location.longitude}, acc=${location.accuracy}"
             )
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.w(TAG, "onDestroy(): Service wird zerstört, isRecording=$isRecording")
-        // Falls der Service unerwartet beendet wird, Datei sicherheitshalber schließen
-        try {
-            if (isRecording) {
-                fileWriter.finishSession()
+        Log.w(TAG, "onDestroy(): service destroyed, isRecording=$isRecording")
+        ioHandler.post {
+            try {
+                if (isRecording) {
+                    fileWriter.finishSession()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "onDestroy(): error closing file", e)
+            } finally {
+                // Thread beenden, nachdem Tasks abgearbeitet sind
+                ioThread.quitSafely()
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "onDestroy(): Fehler beim Schließen der Datei", e)
         }
     }
 }
