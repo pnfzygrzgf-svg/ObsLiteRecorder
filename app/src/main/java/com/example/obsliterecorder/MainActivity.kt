@@ -94,6 +94,15 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private lateinit var tvGpsStatus: TextView
     private lateinit var mapView: MapView
 
+    // Toggle-Button für Karte
+    private lateinit var btnToggleMap: MaterialButton
+    private var isMapVisible: Boolean = false
+
+    // Toggle für Lenkerbreite-Bereich
+    private lateinit var btnToggleHandlebar: MaterialButton
+    private lateinit var handlebarContent: View
+    private var isHandlebarVisible: Boolean = true
+
     private var locationMarker: Marker? = null
     private var defaultLocationIcon: Drawable? = null
 
@@ -179,6 +188,11 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         etHandlebarWidth = findViewById(R.id.etHandlebarWidth)
         tvGpsStatus = findViewById(R.id.tvGpsStatus)
         mapView = findViewById(R.id.mapView)
+        btnToggleMap = findViewById(R.id.btnToggleMap)
+
+        // Lenkerbreite-Toggle-Views
+        btnToggleHandlebar = findViewById(R.id.btnToggleHandlebar)
+        handlebarContent = findViewById(R.id.handlebarContent)
 
         // About
         findViewById<TextView>(R.id.tvAbout).setOnClickListener {
@@ -199,11 +213,33 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             startActivity(Intent(this, RecordedFilesActivity::class.java))
         }
 
-        // Map
+        // Map-Basiskonfiguration
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
         mapView.controller.setZoom(18.0)
         mapView.controller.setCenter(GeoPoint(0.0, 0.0))
+
+        // Karte initial ausgeblendet
+        isMapVisible = false
+        mapView.visibility = View.GONE
+        btnToggleMap.text = "Karte anzeigen"
+
+        btnToggleMap.setOnClickListener {
+            isMapVisible = !isMapVisible
+            mapView.visibility = if (isMapVisible) View.VISIBLE else View.GONE
+            btnToggleMap.text = if (isMapVisible) "Karte ausblenden" else "Karte anzeigen"
+        }
+
+        // Lenkerbreite-Bereich initial sichtbar
+        isHandlebarVisible = true
+        handlebarContent.visibility = View.VISIBLE
+        btnToggleHandlebar.text = "Ausblenden"
+
+        btnToggleHandlebar.setOnClickListener {
+            isHandlebarVisible = !isHandlebarVisible
+            handlebarContent.visibility = if (isHandlebarVisible) View.VISIBLE else View.GONE
+            btnToggleHandlebar.text = if (isHandlebarVisible) "Ausblenden" else "Einblenden"
+        }
 
         // Button-Farbe merken (clean: Standardfarbe aus dem Theme)
         recordOriginalTint = btnRecord.backgroundTintList
@@ -309,9 +345,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             btnRecord.text = "Aufnahme starten"
             btnRecord.backgroundTintList = recordOriginalTint
         }
-
-        // Marker-Farbe/Icon wird im Map-Update gesetzt (abhängig von isRecording)
-        // -> kein zusätzliches Handling hier nötig
     }
 
     // --- GPS-Status / Map-Update ---
@@ -358,6 +391,24 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     private var lastShown: GeoPoint? = null
     private fun updateMapAndGpsStatus(lat: Double, lon: Double, accuracy: Float) {
+        // 1) Immer GPS-Status aktualisieren
+        val acc = accuracy.toInt()
+        val statusText = when {
+            acc <= 10 -> "GPS: gut (±${acc} m)"
+            acc <= 30 -> "GPS: ok (±${acc} m)"
+            else -> "GPS: schwach (±${acc} m)"
+        }
+        val color = when {
+            acc <= 10 -> Color.parseColor("#4CAF50")
+            acc <= 30 -> Color.parseColor("#FFC107")
+            else -> Color.parseColor("#F44336")
+        }
+        tvGpsStatus.text = statusText
+        tvGpsStatus.setTextColor(color)
+
+        // 2) Map nur aktualisieren, wenn sie sichtbar ist
+        if (mapView.visibility != View.VISIBLE) return
+
         val p = GeoPoint(lat, lon)
         if (lastShown == null || p.distanceToAsDouble(lastShown) > 10.0) {
             mapView.controller.setCenter(p)
@@ -379,20 +430,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
                 defaultLocationIcon
         }
         mapView.invalidate()
-
-        val acc = accuracy.toInt()
-        val statusText = when {
-            acc <= 10 -> "GPS: gut (±${acc} m)"
-            acc <= 30 -> "GPS: ok (±${acc} m)"
-            else -> "GPS: schwach (±${acc} m)"
-        }
-        val color = when {
-            acc <= 10 -> Color.parseColor("#4CAF50")
-            acc <= 30 -> Color.parseColor("#FFC107")
-            else -> Color.parseColor("#F44336")
-        }
-        tvGpsStatus.text = statusText
-        tvGpsStatus.setTextColor(color)
     }
 
     private fun updateGpsStatusNoFix() {
