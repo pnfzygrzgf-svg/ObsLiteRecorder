@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Foreground-Service für dauerhafte Aufzeichnung im Hintergrund -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -36,7 +39,7 @@
             android:label="@string/about_app_title"
             android:exported="false" />
 
-        <!-- NEU: Seite für Upload + Fahrten + BIN-Check -->
+        <!-- Seite für Upload + Fahrten + BIN-Check -->
         <activity
             android:name=".DataActivity"
             android:label="Aufgezeichnete Fahrten"
@@ -44,7 +47,8 @@
 
         <service
             android:name=".obslite.ObsLiteService"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="location|dataSync" />
 
     </application>
 

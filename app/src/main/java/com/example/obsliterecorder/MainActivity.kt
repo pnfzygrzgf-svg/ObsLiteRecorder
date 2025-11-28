@@ -162,6 +162,10 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
+        // Foreground-Service für ObsLite starten (läuft unabhängig von der Activity weiter)
+        val serviceIntent = Intent(this, ObsLiteService::class.java)
+        ContextCompat.startForegroundService(this, serviceIntent)
+
         Configuration.getInstance().load(
             applicationContext,
             getSharedPreferences("osmdroid", MODE_PRIVATE)
@@ -291,17 +295,16 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     override fun onStart() {
         super.onStart()
+        // GPS-Updates starten
         startLocationUpdates()
+        // An Foreground-Service binden (für onUsbData/onLocationChanged)
         bindService(Intent(this, ObsLiteService::class.java), connection, BIND_AUTO_CREATE)
     }
 
     override fun onStop() {
         super.onStop()
-        stopLocationUpdates()
-        if (bound) {
-            unbindService(connection)
-            bound = false
-        }
+        // Kein stopLocationUpdates / unbindService hier mehr,
+        // damit Aufzeichnung auch im Hintergrund weiterlaufen kann.
     }
 
     override fun onResume() {
@@ -320,6 +323,13 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         disconnectUsb()
         runCatching { unregisterReceiver(usbReceiver) }
         previewThread.quitSafely()
+
+        // Jetzt wirklich GPS + Service aufräumen
+        stopLocationUpdates()
+        if (bound) {
+            unbindService(connection)
+            bound = false
+        }
     }
 
     // --- Permission-Callback für GPS ---

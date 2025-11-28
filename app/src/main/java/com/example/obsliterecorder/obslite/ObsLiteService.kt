@@ -1,19 +1,29 @@
 // file: com/example/obsliterecorder/obslite/ObsLiteService.kt
 package com.example.obsliterecorder.obslite
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.location.Location
 import android.os.Binder
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.example.obsliterecorder.R
 
 class ObsLiteService : Service() {
 
     companion object {
         const val TAG = "ObsLiteService_LOG"
+
+        private const val CHANNEL_ID = "obs_lite_recording"
+        private const val CHANNEL_NAME = "OBS Lite Aufzeichnung"
+        private const val NOTIFICATION_ID = 1001
     }
 
     inner class LocalBinder : Binder() {
@@ -32,6 +42,8 @@ class ObsLiteService : Service() {
     private lateinit var ioThread: HandlerThread
     private lateinit var ioHandler: Handler
 
+    private var isForeground = false
+
     fun getLastMedianAtPressCm(): Int? = obsSession.lastMedianAtPressCm
 
     override fun onCreate() {
@@ -43,11 +55,72 @@ class ObsLiteService : Service() {
         ioThread = HandlerThread("obs-io")
         ioThread.start()
         ioHandler = Handler(ioThread.looper)
+
+        createNotificationChannel()
     }
 
     override fun onBind(intent: Intent?): IBinder {
         if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onBind()")
         return binder
+    }
+
+    /**
+     * Wird aufgerufen, wenn der Service per startForegroundService(...) gestartet wird.
+     * Hier starten wir die Foreground-Notification.
+     */
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onStartCommand() id=$startId intent=$intent")
+        if (!isForeground) {
+            startInForeground()
+        }
+        // START_STICKY: falls der Prozess gekillt wird, versucht Android, den Service neu zu starten
+        return START_STICKY
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val mgr = getSystemService(NotificationManager::class.java)
+            val existing = mgr.getNotificationChannel(CHANNEL_ID)
+            if (existing == null) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Hintergrunddienst für OBS Lite Aufzeichnung"
+                }
+                mgr.createNotificationChannel(channel)
+            }
+        }
+    }
+
+    private fun buildNotification(isRecordingNow: Boolean): Notification {
+        val text = if (isRecordingNow) {
+            "Aufnahme läuft – Fahrt wird aufgezeichnet"
+        } else {
+            "Bereit – Aufnahme kann in der App gestartet werden"
+        }
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("OBS Lite Recorder")
+            .setContentText(text)
+            .setSmallIcon(R.mipmap.ic_launcher) // falls du ein eigenes Icon hast: R.drawable.ic_notification
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+    }
+
+    private fun startInForeground() {
+        val notification = buildNotification(isRecording)
+        startForeground(NOTIFICATION_ID, notification)
+        isForeground = true
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "startInForeground(): started")
+    }
+
+    private fun updateForegroundNotification() {
+        if (!isForeground) return
+        val mgr = getSystemService(NotificationManager::class.java)
+        mgr.notify(NOTIFICATION_ID, buildNotification(isRecording))
     }
 
     fun startRecording() {
@@ -65,6 +138,8 @@ class ObsLiteService : Service() {
                 // Datei öffnen
                 fileWriter.startSession()
                 isRecording = true
+                updateForegroundNotification()
+
                 if (Log.isLoggable(TAG, Log.DEBUG)) {
                     Log.d(
                         TAG,
@@ -74,6 +149,7 @@ class ObsLiteService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "startRecording(): failed to start session", e)
                 isRecording = false
+                updateForegroundNotification()
             }
         }
     }
@@ -98,6 +174,7 @@ class ObsLiteService : Service() {
                 Log.e(TAG, "stopRecording(): error closing file", e)
             } finally {
                 isRecording = false
+                updateForegroundNotification()
                 if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording(): isRecording=$isRecording")
             }
         }
@@ -212,9 +289,14 @@ class ObsLiteService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "onDestroy(): error closing file", e)
             } finally {
-                // Thread beenden, nachdem Tasks abgearbeitet sind
                 ioThread.quitSafely()
             }
+        }
+
+        if (isForeground) {
+            // Notification entfernen
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            isForeground = false
         }
     }
 }
