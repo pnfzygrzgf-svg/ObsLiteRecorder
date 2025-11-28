@@ -94,6 +94,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     // Neuer Button für Unterseite
     private lateinit var btnOpenData: MaterialButton
 
+    // App beenden
+    private lateinit var btnExit: MaterialButton
+
     // Toggle für Lenkerbreite-Bereich
     private lateinit var btnToggleHandlebar: MaterialButton
     private lateinit var handlebarContent: View
@@ -202,6 +205,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         sensorContent = findViewById(R.id.sensorContent)
 
         btnOpenData = findViewById(R.id.btnOpenData)
+        btnExit = findViewById(R.id.btnExit)
 
         // About
         findViewById<TextView>(R.id.tvAbout).setOnClickListener {
@@ -250,6 +254,11 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         // Neuer Button -> Unterseite Daten/Upload/Fahrten
         btnOpenData.setOnClickListener {
             startActivity(Intent(this, DataActivity::class.java))
+        }
+
+        // App beenden
+        btnExit.setOnClickListener {
+            exitApp()
         }
 
         // Button-Farbe merken
@@ -644,6 +653,25 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     override fun onRunError(e: Exception?) {
         Log.e(TAG, "Serial IO error", e)
         updateUsbStatus("USB: Fehler im Datenstrom")
+    }
+
+    // --- App komplett beenden ---
+    private fun exitApp() {
+        // Aufnahme stoppen, falls aktiv
+        if (isRecording) {
+            obsService?.stopRecording()
+            isRecording = false
+            updateRecordingUi()
+        }
+
+        // Foreground-Service stoppen
+        stopService(Intent(this, ObsLiteService::class.java))
+
+        // USB-Verbindung trennen
+        disconnectUsb()
+
+        // Alle Activities schließen -> App aus Taskliste
+        finishAffinity()
     }
 
     companion object {
