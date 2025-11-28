@@ -1,18 +1,17 @@
-// file: com/example/obsliterecorder/MainActivity.kt
 package com.example.obsliterecorder
 
-import android.app.PendingIntent
-import android.content.*
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.Drawable
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -26,25 +25,14 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.obsliterecorder.obslite.ObsLiteService
-import com.example.obsliterecorder.obslite.OBSLiteSession
-import com.example.obsliterecorder.proto.Event
-import com.example.obsliterecorder.util.CobsUtils
-import com.google.android.gms.location.*
 import com.google.android.material.button.MaterialButton
-import com.google.protobuf.InvalidProtocolBufferException
-import com.hoho.android.usbserial.driver.UsbSerialPort
-import com.hoho.android.usbserial.driver.UsbSerialProber
-import com.hoho.android.usbserial.util.SerialInputOutputManager
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import java.util.LinkedList
-import java.util.concurrent.ConcurrentLinkedDeque
-import kotlin.math.roundToInt
 
-class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
+class MainActivity : AppCompatActivity() {
 
     // --- Service-Binding zum ObsLiteService ---
     private var obsService: ObsLiteService? = null
@@ -55,29 +43,28 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             val binder = service as ObsLiteService.LocalBinder
             obsService = binder.getService()
             bound = true
+
+            // Aufnahme-Status vom Service übernehmen
+            isRecording = obsService?.isRecordingActive() ?: false
+            updateRecordingUi()
+
+            // Falls Location-Permission schon da -> Service soll GPS-Updates starten
+            if (hasLocationPermission()) {
+                obsService?.ensureLocationUpdates()
+            } else {
+                requestLocationPermission()
+            }
+
+            // UI-Status-Updates starten
+            startStatusUiUpdates()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
             obsService = null
+            stopStatusUiUpdates()
         }
     }
-
-    // --- Location / GPS ---
-    private val fusedLocationClient by lazy {
-        LocationServices.getFusedLocationProviderClient(this)
-    }
-    private var locationCallback: LocationCallback? = null
-
-    // --- USB / OpenBikeSensor Lite ---
-    private lateinit var usbManager: UsbManager
-    private var usbDevice: UsbDevice? = null
-    private var usbIoManager: SerialInputOutputManager? = null
-    private lateinit var usbPort: UsbSerialPort
-    private var obsLiteConnected = false
-
-    private val ACTION_USB_PERMISSION = "com.example.obsliterecorder.USB_PERMISSION"
-    private var permissionIntent: PendingIntent? = null
 
     // UI
     private lateinit var btnRecord: MaterialButton
@@ -114,49 +101,40 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     private var recordOriginalTint: android.content.res.ColorStateList? = null
 
+    // Lokaler UI-Status (Service hält den echten Aufnahme-Status)
     private var isRecording: Boolean = false
 
-    // --- Preview-COBS (off-UI) ---
-    private val byteListQueue = ConcurrentLinkedDeque<LinkedList<Byte>>()
-    private var lastByteRead: Byte? = null
-
-    // Hintergrund-Thread für Preview
-    private lateinit var previewThread: HandlerThread
-    private lateinit var previewHandler: Handler
-
-    // Gleitender Median für Live-Anzeige (links, korrigiert)
-    private val previewMedian = OBSLiteSession.MovingMedian()
-
     // SharedPreferences für Lenkerbreite
-    private val prefs by lazy { getSharedPreferences("obslite_prefs", MODE_PRIVATE) }
+    private val prefs: SharedPreferences by lazy { getSharedPreferences("obslite_prefs", MODE_PRIVATE) }
 
-    // Optional: spezifische VID/PID deines Geräts (sonst Fallback auf erstes)
-    private val TARGET_VENDOR_ID: Int? = null
-    private val TARGET_PRODUCT_ID: Int? = null
+    // Handler für periodische UI-Updates von Service-Daten
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val statusRunnable = object : Runnable {
+        override fun run() {
+            if (bound && obsService != null) {
+                try {
+                    // USB-Status
+                    tvUsbStatus.text = obsService!!.getUsbStatus()
+                    btnUsb.text =
+                        if (obsService!!.isUsbConnected()) "OBS Lite trennen" else "OBS Lite verbinden"
 
-    private val usbReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_USB_PERMISSION) {
-                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent?.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                }
+                    // Distanzen (Preview)
+                    tvLeftDistance.text = obsService!!.getLeftDistanceText()
+                    tvRightDistance.text = obsService!!.getRightDistanceText()
+                    tvOvertakeDistance.text = obsService!!.getOvertakeDistanceText()
 
-                val granted = intent?.getBooleanExtra(
-                    UsbManager.EXTRA_PERMISSION_GRANTED,
-                    false
-                ) ?: false
-                Log.d(TAG, "USB permission result: device=$device granted=$granted")
-
-                if (granted && device != null) {
-                    usbDevice = device
-                    openUsbDevice()
-                } else {
-                    updateUsbStatus("USB: Berechtigung verweigert")
+                    // GPS / Karte
+                    val loc = obsService!!.getLastLocation()
+                    if (loc != null) {
+                        updateMapAndGpsStatus(loc.latitude, loc.longitude, loc.accuracy)
+                    } else {
+                        updateGpsStatusNoFix()
+                    }
+                } catch (t: Throwable) {
+                    Log.e(TAG, "statusRunnable(): error updating UI", t)
                 }
             }
+            uiHandler.postDelayed(this, 1000L)
         }
     }
 
@@ -273,29 +251,26 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
                 obsService?.stopRecording()
                 isRecording = false
             } else {
+                // Vor Start: Lenkerbreite in Preferences schreiben,
+                // damit Service/Session korrekte Werte haben
+                saveHandlebarWidthCm(getHandlebarWidthCm())
                 obsService?.startRecording()
                 isRecording = true
             }
             updateRecordingUi()
         }
 
-        // USB
-        usbManager = getSystemService(USB_SERVICE) as UsbManager
-        val explicitIntent = Intent(ACTION_USB_PERMISSION).setPackage(packageName)
-        val flag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            PendingIntent.FLAG_MUTABLE
-        else
-            0
-        permissionIntent = PendingIntent.getBroadcast(this, 0, explicitIntent, flag)
-        registerReceiver(usbReceiver, IntentFilter(ACTION_USB_PERMISSION))
+        // USB über Service toggeln
         btnUsb.setOnClickListener {
-            if (obsLiteConnected) disconnectUsb() else requestUsbPermission()
+            val svc = obsService
+            if (svc != null) {
+                if (svc.isUsbConnected()) {
+                    svc.disconnectUsbFromUi()
+                } else {
+                    svc.requestUsbPermissionFromUi()
+                }
+            }
         }
-
-        // Preview-Thread
-        previewThread = HandlerThread("preview-io")
-        previewThread.start()
-        previewHandler = Handler(previewThread.looper)
 
         // initial UI
         updateRecordingUi()
@@ -304,16 +279,17 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     override fun onStart() {
         super.onStart()
-        // GPS-Updates starten
-        startLocationUpdates()
-        // An Foreground-Service binden (für onUsbData/onLocationChanged)
+        // An Foreground-Service binden (für UI-Status, Start/Stop, USB-Steuerung)
         bindService(Intent(this, ObsLiteService::class.java), connection, BIND_AUTO_CREATE)
     }
 
     override fun onStop() {
         super.onStop()
-        // Kein stopLocationUpdates / unbindService hier mehr,
-        // damit Aufzeichnung auch im Hintergrund weiterlaufen kann.
+        stopStatusUiUpdates()
+        if (bound) {
+            unbindService(connection)
+            bound = false
+        }
     }
 
     override fun onResume() {
@@ -329,16 +305,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     override fun onDestroy() {
         super.onDestroy()
-        disconnectUsb()
-        runCatching { unregisterReceiver(usbReceiver) }
-        previewThread.quitSafely()
-
-        // Jetzt wirklich GPS + Service aufräumen
-        stopLocationUpdates()
-        if (bound) {
-            unbindService(connection)
-            bound = false
-        }
+        // Hier NICHT mehr USB/GPS trennen – das macht der Service selbst
     }
 
     // --- Permission-Callback für GPS ---
@@ -352,7 +319,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             if (grantResults.isNotEmpty() &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             ) {
-                startLocationUpdates()
+                obsService?.ensureLocationUpdates()
             } else {
                 updateGpsStatusNoFix()
             }
@@ -371,48 +338,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         }
     }
 
-    // --- GPS-Status / Map-Update ---
-    private fun startLocationUpdates() {
-        if (!hasLocationPermission()) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),
-                LOCATION_PERMISSION_REQUEST_CODE
-            )
-            return
-        }
-        if (locationCallback != null) return
-
-        val request = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            1000L
-        ).setMinUpdateIntervalMillis(500L).build()
-
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(result: LocationResult) {
-                val loc = result.lastLocation ?: return
-                if (bound) obsService?.onLocationChanged(loc)
-                updateMapAndGpsStatus(loc.latitude, loc.longitude, loc.accuracy)
-            }
-        }
-        fusedLocationClient.requestLocationUpdates(
-            request,
-            locationCallback!!,
-            mainLooper
-        )
-    }
-
-    private fun stopLocationUpdates() {
-        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
-        locationCallback = null
-    }
-
-    private fun hasLocationPermission() =
-        ContextCompat.checkSelfPermission(
-            this,
-            android.Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
+    // --- GPS/UI-Status (nur Anzeige, echte Updates im Service) ---
     private var lastShown: GeoPoint? = null
     private fun updateMapAndGpsStatus(lat: Double, lon: Double, accuracy: Float) {
         // GPS-Status
@@ -461,198 +387,39 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         tvGpsStatus.setTextColor(Color.GRAY)
     }
 
-    // --- USB / OpenBikeSensor Lite ---
-    private fun requestUsbPermission() {
-        val devices = usbManager.deviceList.values
-        if (devices.isEmpty()) {
-            updateUsbStatus("USB: kein Gerät gefunden")
-            return
-        }
-        val target = devices.firstOrNull { d ->
-            (TARGET_VENDOR_ID == null || d.vendorId == TARGET_VENDOR_ID) &&
-                    (TARGET_PRODUCT_ID == null || d.productId == TARGET_PRODUCT_ID)
-        } ?: devices.first()
-
-        usbDevice = target
-        updateUsbStatus("USB: Gerät gefunden, frage Berechtigung...")
-        usbManager.requestPermission(target, permissionIntent)
-    }
-
-    private fun openUsbDevice() {
-        val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
-        if (availableDrivers.isEmpty()) {
-            updateUsbStatus("USB: kein serieller Treiber gefunden")
-            return
-        }
-
-        // Treiber passend zum freigegebenen Device wählen
-        val dev = usbDevice
-        val driver = if (dev != null) {
-            availableDrivers.firstOrNull { it.device.deviceId == dev.deviceId }
-                ?: availableDrivers.first()
-        } else {
-            availableDrivers.first()
-        }
-
-        val connection = usbManager.openDevice(driver.device)
-        if (connection == null) {
-            updateUsbStatus("USB: konnte Gerät nicht öffnen")
-            return
-        }
-
-        usbPort = driver.ports.first()
-        try {
-            usbPort.open(connection)
-            usbPort.setParameters(
-                115200,
-                8,
-                UsbSerialPort.STOPBITS_1,
-                UsbSerialPort.PARITY_NONE
-            )
-            usbIoManager = SerialInputOutputManager(usbPort, this).also { it.start() }
-
-            obsLiteConnected = true
-            updateUsbStatus("USB: verbunden")
-            btnUsb.text = "OBS Lite trennen"
-            Log.d(TAG, "USB serial port opened")
-        } catch (e: Exception) {
-            Log.e(TAG, "USB open error", e)
-            updateUsbStatus("USB: Fehler beim Öffnen")
-        }
-    }
-
-    private fun disconnectUsb() {
-        try {
-            usbIoManager?.stop()
-        } catch (_: Exception) {
-        }
-        usbIoManager = null
-        try {
-            if (this::usbPort.isInitialized) usbPort.close()
-        } catch (_: Exception) {
-        }
-
-        obsLiteConnected = false
-        btnUsb.text = "OBS Lite verbinden"
-        updateUsbStatus("USB: nicht verbunden")
-    }
-
-    private fun updateUsbStatus(text: String) {
-        runOnUiThread { tvUsbStatus.text = text }
-    }
-
     // --- Lenkerbreite persistieren ---
     private fun loadHandlebarWidthCm(): Int = prefs.getInt(PREF_KEY_HANDLEBAR_WIDTH_CM, 60)
     private fun saveHandlebarWidthCm(widthCm: Int) {
         prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
     }
+
     private fun getHandlebarWidthCm(): Int {
         val text = etHandlebarWidth.text?.toString()?.trim()
         return text?.toIntOrNull() ?: loadHandlebarWidthCm()
     }
 
-    // --- COBS-Handling für Preview ---
-    private fun previewFillByteList(data: ByteArray) {
-        for (b in data) {
-            if (lastByteRead?.toInt() == 0x00 || byteListQueue.isEmpty()) {
-                val newList = LinkedList<Byte>()
-                newList.add(b)
-                byteListQueue.add(newList)
-            } else {
-                byteListQueue.last.add(b)
-            }
-            lastByteRead = b
-        }
+    // --- Location-Permission aus Activity heraus anfragen ---
+    private fun hasLocationPermission() =
+        ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+    private fun requestLocationPermission() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),
+            LOCATION_PERMISSION_REQUEST_CODE
+        )
     }
 
-    private fun previewCompleteCobsAvailable(): Boolean {
-        val first = byteListQueue.peekFirst() ?: return false
-        for (b in first) if (b.toInt() == 0x00) return true
-        return false
+    private fun startStatusUiUpdates() {
+        uiHandler.removeCallbacks(statusRunnable)
+        uiHandler.post(statusRunnable)
     }
 
-    private fun handlePreviewEventSafe() {
-        val list = byteListQueue.pollFirst() ?: return
-        val hasZero = list.any { it.toInt() == 0x00 }
-        if (!hasZero) {
-            // unvollständig -> wieder vorne einreihen
-            byteListQueue.addFirst(list)
-            return
-        }
-
-        val decodedData = try {
-            CobsUtils.decode(list)
-        } catch (e: Exception) {
-            Log.e(TAG, "Preview: COBS decode failed", e)
-            return
-        }
-
-        try {
-            val event: Event = Event.parseFrom(decodedData)
-
-            if (event.hasDistanceMeasurement() && event.distanceMeasurement.distance < 5f) {
-                val rawCm = (event.distanceMeasurement.distance * 100).roundToInt()
-                val sourceId = event.distanceMeasurement.sourceId
-
-                val handlebarWidthCm = getHandlebarWidthCm()
-                val corrected = ((rawCm - handlebarWidthCm / 2.0).coerceAtLeast(0.0)).roundToInt()
-
-                if (sourceId == 1) previewMedian.newValue(corrected)
-
-                runOnUiThread {
-                    val text = "Roh: ${rawCm} cm  |  korrigiert: ${corrected} cm"
-                    if (sourceId == 1) {
-                        tvLeftDistance.text = "Links (ID 1): $text"
-                    } else {
-                        tvRightDistance.text = "Rechts (ID $sourceId): $text"
-                    }
-                }
-            } else if (event.hasUserInput()) {
-                val uiType = event.userInput.type
-                runOnUiThread {
-                    tvUsbStatus.text = "UserInput: $uiType"
-                    tvOvertakeDistance.text = if (previewMedian.hasMedian()) {
-                        "Überholabstand: ${previewMedian.median} cm"
-                    } else {
-                        "Überholabstand: -"
-                    }
-                }
-            }
-        } catch (e: InvalidProtocolBufferException) {
-            Log.e(TAG, "Preview: parse error", e)
-            runOnUiThread { tvUsbStatus.text = "USB: Parse-Fehler" }
-        }
-    }
-
-    // --- SerialInputOutputManager.Listener ---
-    override fun onNewData(data: ByteArray?) {
-        if (data == null) return
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "onNewData: ${data.size} Bytes")
-        }
-
-        runOnUiThread { tvUsbStatus.text = "USB: Daten ${data.size} B" }
-        if (bound) obsService?.onUsbData(data)
-
-        // Preview-Verarbeitung auf Hintergrund-Thread
-        previewHandler.post {
-            previewFillByteList(data)
-            var loops = 0
-            val maxLoops = 1000
-            while (previewCompleteCobsAvailable()) {
-                handlePreviewEventSafe()
-                loops++
-                if (loops >= maxLoops) {
-                    Log.e(TAG, "Preview loop safety break ($loops)")
-                    break
-                }
-            }
-        }
-    }
-
-    override fun onRunError(e: Exception?) {
-        Log.e(TAG, "Serial IO error", e)
-        updateUsbStatus("USB: Fehler im Datenstrom")
+    private fun stopStatusUiUpdates() {
+        uiHandler.removeCallbacks(statusRunnable)
     }
 
     // --- App komplett beenden ---
@@ -664,11 +431,11 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             updateRecordingUi()
         }
 
+        // USB-Verbindung über Service trennen
+        obsService?.disconnectUsbFromUi()
+
         // Foreground-Service stoppen
         stopService(Intent(this, ObsLiteService::class.java))
-
-        // USB-Verbindung trennen
-        disconnectUsb()
 
         // Alle Activities schließen -> App aus Taskliste
         finishAffinity()

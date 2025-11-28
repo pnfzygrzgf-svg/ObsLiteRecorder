@@ -11,6 +11,19 @@
     <!-- Foreground-Service für dauerhafte Aufzeichnung im Hintergrund -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
+    <!-- Ab Android 14+: zusätzliches Permission für foregroundServiceType="location" -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- USB-Host, weil du als Host ein externes USB-Gerät (OBS Lite) ansteckst -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="true" />
+    <!--
+        Wenn du möchtest, dass die App auch auf Geräten ohne USB-Port im Play Store erscheint,
+        setze android:required="false". Dann musst du aber selbst abfangen,
+        dass kein USB verfügbar ist.
+    -->
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -45,6 +58,7 @@
             android:label="Aufgezeichnete Fahrten"
             android:exported="false" />
 
+        <!-- Foreground-Service, der USB + GPS komplett übernimmt -->
         <service
             android:name=".obslite.ObsLiteService"
             android:exported="false"
