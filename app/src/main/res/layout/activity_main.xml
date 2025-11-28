@@ -129,7 +129,7 @@
                         style="@style/Widget.App.PrimaryButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Lenkerbreite" />
+                        android:text="Ausblenden" />
                 </LinearLayout>
 
                 <!-- Inhalt, der ein-/ausgeblendet wird -->
@@ -160,7 +160,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Sektion: Sensorwerte -->
+        <!-- Sektion: Sensorwerte (links/rechts ein-/ausblendbar, Überholabstand immer sichtbar) -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -176,43 +176,69 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="12dp"
+                android:animateLayoutChanges="true">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Sensorwerte"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="@color/text_primary" />
-
-                <!-- Links / Rechts nebeneinander -->
+                <!-- Kopfzeile: Titel + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="8dp"
-                    android:weightSum="2">
+                    android:gravity="center_vertical">
 
                     <TextView
-                        android:id="@+id/tvLeftDistance"
+                        android:id="@+id/tvSensorTitle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Links: -"
-                        android:textColor="@color/text_secondary" />
+                        android:text="Sensorwerte"
+                        android:textStyle="bold"
+                        android:textSize="18sp"
+                        android:textColor="@color/text_primary" />
 
-                    <TextView
-                        android:id="@+id/tvRightDistance"
-                        android:layout_width="0dp"
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnToggleSensor"
+                        style="@style/Widget.App.PrimaryButton"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="end"
-                        android:text="Rechts: -"
-                        android:textColor="@color/text_secondary" />
+                        android:text="Ausblenden" />
                 </LinearLayout>
 
-                <!-- Überholabstand prominent -->
+                <!-- Inhalt, der ein-/ausgeblendet wird (Links/Rechts) -->
+                <LinearLayout
+                    android:id="@+id/sensorContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp">
+
+                    <!-- Links / Rechts nebeneinander -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <TextView
+                            android:id="@+id/tvLeftDistance"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Links: -"
+                            android:textColor="@color/text_secondary" />
+
+                        <TextView
+                            android:id="@+id/tvRightDistance"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="end"
+                            android:text="Rechts: -"
+                            android:textColor="@color/text_secondary" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Überholabstand prominent – bleibt immer sichtbar -->
                 <TextView
                     android:id="@+id/tvOvertakeDistance"
                     android:layout_width="match_parent"
@@ -225,6 +251,7 @@
                     android:layout_marginTop="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
 
         <!-- Sektion: GPS & Karte (mit Toggle) -->
         <com.google.android.material.card.MaterialCardView
@@ -279,67 +306,15 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Sektion: Daten / Upload -->
-        <com.google.android.material.card.MaterialCardView
+        <!-- NEU: Nur noch EIN Button für Unterseite -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOpenData"
+            style="@style/Widget.App.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="Aufgezeichnete Fahrten"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="4dp"
-            app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="false"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/border_soft"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Daten / Upload"
-                    android:textStyle="bold"
-                    android:textSize="18sp"
-                    android:textColor="@color/text_primary" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnDebugBin"
-                    style="@style/Widget.App.PrimaryButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Letzte BIN prüfen"
-                    android:layout_marginTop="8dp" />
-
-                <!-- Hier erscheinen die BIN-Werte direkt unter dem Button -->
-                <TextView
-                    android:id="@+id/tvBinStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="4dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnOpenUpload"
-                    style="@style/Widget.App.PrimaryButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Upload ins Portal"
-                    android:layout_marginTop="8dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnShowFiles"
-                    style="@style/Widget.App.PrimaryButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Aufgezeichnete Fahrten"
-                    android:layout_marginTop="8dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+            android:layout_marginBottom="8dp" />
 
         <!-- Link: Über diese App -->
         <TextView

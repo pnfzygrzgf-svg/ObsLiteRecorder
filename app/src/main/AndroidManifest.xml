@@ -36,14 +36,9 @@
             android:label="@string/about_app_title"
             android:exported="false" />
 
-        <!-- Upload-Seite – ebenfalls App-Theme -->
+        <!-- NEU: Seite für Upload + Fahrten + BIN-Check -->
         <activity
-            android:name=".UploadActivity"
-            android:exported="false" />
-
-        <!-- Seite: Aufgezeichnete Fahrten -->
-        <activity
-            android:name=".RecordedFilesActivity"
+            android:name=".DataActivity"
             android:label="Aufgezeichnete Fahrten"
             android:exported="false" />
 

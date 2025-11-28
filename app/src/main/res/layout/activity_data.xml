@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
@@ -10,6 +11,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <!-- Upload ins Portal -->
         <TextView
             android:id="@+id/tvUploadTitle"
             android:layout_width="wrap_content"
@@ -63,9 +65,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
-        <!-- Upload-Button -->
-        <Button
+        <!-- Upload-Button (Material) -->
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUpload"
+            style="@style/Widget.App.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Datei hochladen"
@@ -79,5 +82,74 @@
             android:text="Status: noch kein Upload"
             android:textColor="@color/text_secondary"
             android:layout_marginTop="16dp" />
+
+        <!-- Trenner -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/border_soft"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Aufgezeichnete Fahrten -->
+        <TextView
+            android:id="@+id/tvFilesHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aufgezeichnete Fahrten"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDeleteAll"
+            style="@style/Widget.App.PrimaryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Alle Fahrten löschen" />
+
+        <ListView
+            android:id="@+id/listFiles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:dividerHeight="1dp"
+            android:divider="@color/border_soft" />
+
+        <!-- Trenner -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/border_soft"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- BIN-Check -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Letzte BIN prüfen"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDebugBin"
+            style="@style/Widget.App.PrimaryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Letzte BIN prüfen"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tvBinStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="4dp" />
+
     </LinearLayout>
 </ScrollView>

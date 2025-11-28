@@ -40,7 +40,6 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import java.io.File
 import java.util.LinkedList
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.math.roundToInt
@@ -83,25 +82,29 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     // UI
     private lateinit var btnRecord: MaterialButton
     private lateinit var btnUsb: Button
-    private lateinit var btnOpenUpload: Button
-    private lateinit var btnShowFiles: Button
     private lateinit var tvUsbStatus: TextView
-    private lateinit var tvBinStatus: TextView
     private lateinit var tvLeftDistance: TextView
     private lateinit var tvRightDistance: TextView
     private lateinit var tvOvertakeDistance: TextView
     private lateinit var etHandlebarWidth: EditText
     private lateinit var tvGpsStatus: TextView
     private lateinit var mapView: MapView
-
-    // Toggle-Button für Karte
     private lateinit var btnToggleMap: MaterialButton
-    private var isMapVisible: Boolean = false
+
+    // Neuer Button für Unterseite
+    private lateinit var btnOpenData: MaterialButton
 
     // Toggle für Lenkerbreite-Bereich
     private lateinit var btnToggleHandlebar: MaterialButton
     private lateinit var handlebarContent: View
-    private var isHandlebarVisible: Boolean = true
+    private var isHandlebarVisible: Boolean = false
+
+    // Toggle für Sensorwerte-Bereich (Links/Rechts)
+    private lateinit var btnToggleSensor: MaterialButton
+    private lateinit var sensorContent: View
+    private var isSensorVisible: Boolean = false
+
+    private var isMapVisible: Boolean = false
 
     private var locationMarker: Marker? = null
     private var defaultLocationIcon: Drawable? = null
@@ -178,10 +181,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         // Views
         btnRecord = findViewById(R.id.btnRecord)
         btnUsb = findViewById(R.id.btnUsb)
-        btnOpenUpload = findViewById(R.id.btnOpenUpload)
-        btnShowFiles = findViewById(R.id.btnShowFiles)
         tvUsbStatus = findViewById(R.id.tvUsbStatus)
-        tvBinStatus = findViewById(R.id.tvBinStatus)
         tvLeftDistance = findViewById(R.id.tvLeftDistance)
         tvRightDistance = findViewById(R.id.tvRightDistance)
         tvOvertakeDistance = findViewById(R.id.tvOvertakeDistance)
@@ -190,36 +190,27 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         mapView = findViewById(R.id.mapView)
         btnToggleMap = findViewById(R.id.btnToggleMap)
 
-        // Lenkerbreite-Toggle-Views
         btnToggleHandlebar = findViewById(R.id.btnToggleHandlebar)
         handlebarContent = findViewById(R.id.handlebarContent)
+
+        // Sensor-Toggle
+        btnToggleSensor = findViewById(R.id.btnToggleSensor)
+        sensorContent = findViewById(R.id.sensorContent)
+
+        btnOpenData = findViewById(R.id.btnOpenData)
 
         // About
         findViewById<TextView>(R.id.tvAbout).setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
         }
 
-        // Debug .bin
-        findViewById<Button?>(R.id.btnDebugBin)?.setOnClickListener {
-            tvBinStatus.text = "BIN-Check läuft..."
-            debugValidateLastBin()
-        }
-
-        // Upload / Files
-        btnOpenUpload.setOnClickListener {
-            startActivity(Intent(this, UploadActivity::class.java))
-        }
-        btnShowFiles.setOnClickListener {
-            startActivity(Intent(this, RecordedFilesActivity::class.java))
-        }
-
-        // Map-Basiskonfiguration
+        // Karte konfigurieren
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
         mapView.controller.setZoom(18.0)
         mapView.controller.setCenter(GeoPoint(0.0, 0.0))
 
-        // Karte initial ausgeblendet
+        // Karte initial ausblenden
         isMapVisible = false
         mapView.visibility = View.GONE
         btnToggleMap.text = "Karte anzeigen"
@@ -230,10 +221,10 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             btnToggleMap.text = if (isMapVisible) "Karte ausblenden" else "Karte anzeigen"
         }
 
-        // Lenkerbreite-Bereich initial sichtbar
-        isHandlebarVisible = true
-        handlebarContent.visibility = View.VISIBLE
-        btnToggleHandlebar.text = "Ausblenden"
+        // Lenkerbreite-Bereich initial ausgeblendet
+        isHandlebarVisible = false
+        handlebarContent.visibility = View.GONE
+        btnToggleHandlebar.text = "Einblenden"
 
         btnToggleHandlebar.setOnClickListener {
             isHandlebarVisible = !isHandlebarVisible
@@ -241,7 +232,23 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             btnToggleHandlebar.text = if (isHandlebarVisible) "Ausblenden" else "Einblenden"
         }
 
-        // Button-Farbe merken (clean: Standardfarbe aus dem Theme)
+        // Sensorwerte-Bereich (nur Links/Rechts) initial ausgeblendet
+        isSensorVisible = false
+        sensorContent.visibility = View.GONE
+        btnToggleSensor.text = "Einblenden"
+
+        btnToggleSensor.setOnClickListener {
+            isSensorVisible = !isSensorVisible
+            sensorContent.visibility = if (isSensorVisible) View.VISIBLE else View.GONE
+            btnToggleSensor.text = if (isSensorVisible) "Ausblenden" else "Einblenden"
+        }
+
+        // Neuer Button -> Unterseite Daten/Upload/Fahrten
+        btnOpenData.setOnClickListener {
+            startActivity(Intent(this, DataActivity::class.java))
+        }
+
+        // Button-Farbe merken
         recordOriginalTint = btnRecord.backgroundTintList
 
         // Lenkerbreite
@@ -333,15 +340,13 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         }
     }
 
-    // --- Aufnahme-UI (Button & Map-Icon) ---
+    // --- Aufnahme-UI ---
     private fun updateRecordingUi() {
         if (isRecording) {
-            // Zustand: Aufnahme läuft -> roter Button + "stoppen"
             btnRecord.text = "Aufnahme stoppen"
             btnRecord.backgroundTintList =
                 android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336"))
         } else {
-            // Zustand: keine Aufnahme -> neutraler Button + "starten"
             btnRecord.text = "Aufnahme starten"
             btnRecord.backgroundTintList = recordOriginalTint
         }
@@ -391,7 +396,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
     private var lastShown: GeoPoint? = null
     private fun updateMapAndGpsStatus(lat: Double, lon: Double, accuracy: Float) {
-        // 1) Immer GPS-Status aktualisieren
+        // GPS-Status
         val acc = accuracy.toInt()
         val statusText = when {
             acc <= 10 -> "GPS: gut (±${acc} m)"
@@ -406,7 +411,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         tvGpsStatus.text = statusText
         tvGpsStatus.setTextColor(color)
 
-        // 2) Map nur aktualisieren, wenn sie sichtbar ist
+        // Map nur aktualisieren, wenn sichtbar
         if (mapView.visibility != View.VISIBLE) return
 
         val p = GeoPoint(lat, lon)
@@ -527,7 +532,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         return text?.toIntOrNull() ?: loadHandlebarWidthCm()
     }
 
-    // --- COBS-Handling: jetzt auf Preview-Thread robust ---
+    // --- COBS-Handling für Preview ---
     private fun previewFillByteList(data: ByteArray) {
         for (b in data) {
             if (lastByteRead?.toInt() == 0x00 || byteListQueue.isEmpty()) {
@@ -557,7 +562,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         }
 
         val decodedData = try {
-            CobsUtils.decode(list) // nutzt Overload mit Collection<Byte>
+            CobsUtils.decode(list)
         } catch (e: Exception) {
             Log.e(TAG, "Preview: COBS decode failed", e)
             return
@@ -598,82 +603,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             Log.e(TAG, "Preview: parse error", e)
             runOnUiThread { tvUsbStatus.text = "USB: Parse-Fehler" }
         }
-    }
-
-    // --- Debug: letzte .bin-Datei prüfen (IO off-UI empfohlen) ---
-    private fun debugValidateLastBin() {
-        val dir = File(getExternalFilesDir(null), "obslite")
-        val files = dir.listFiles { f -> f.isFile && f.name.endsWith(".bin") }
-            ?.sortedBy { it.lastModified() } ?: emptyList()
-        if (files.isEmpty()) {
-            Log.e("BIN_DEBUG", "Keine .bin-Datei gefunden")
-            runOnUiThread { tvBinStatus.text = "BIN-Check: keine .bin-Datei gefunden" }
-            return
-        }
-
-        val file = files.last()
-        val bytes = file.readBytes()
-        Log.d("BIN_DEBUG", "Prüfe Datei: ${file.absolutePath}")
-        Log.d("BIN_DEBUG", "Dateigröße: ${bytes.size} Bytes")
-
-        val previewLen = minOf(64, bytes.size)
-        val hexPreview = buildString {
-            for (i in 0 until previewLen) append(String.format("%02X ", bytes[i]))
-        }
-        Log.d("BIN_DEBUG", "Hex-Vorschau (max 64 B): $hexPreview")
-        runOnUiThread { tvBinStatus.text = "BIN-Check: ${file.name} (${bytes.size} B)" }
-
-        val chunks: List<ByteArray> = bytes.splitOnByte(0x00.toByte())
-        Log.d("BIN_DEBUG", "Anzahl Chunks (inkl. evtl. leerer): ${chunks.size}")
-
-        var idx = 0; var okCount = 0; var errorCount = 0; var nonEmptyChunks = 0
-        for (chunk in chunks) {
-            if (chunk.isEmpty()) {
-                Log.d("BIN_DEBUG", "#$idx leerer Chunk")
-                idx++
-                continue
-            }
-            nonEmptyChunks++
-            try {
-                val chunkList = LinkedList<Byte>(); chunk.forEach { b -> chunkList.add(b) }
-                val decoded: ByteArray = CobsUtils.decode(chunkList)
-                val event = Event.parseFrom(decoded)
-                Log.d(
-                    "BIN_DEBUG",
-                    "#$idx OK (Chunklen=${chunk.size}, decoded=${decoded.size}) : $event"
-                )
-                okCount++
-            } catch (e: Exception) {
-                Log.e(
-                    "BIN_DEBUG",
-                    "#$idx FEHLER beim Parsen (Chunklen=${chunk.size})",
-                    e
-                )
-                errorCount++
-            }
-            idx++
-        }
-        Log.d(
-            "BIN_DEBUG",
-            "Auswertung: nonEmptyChunks=$nonEmptyChunks, ok=$okCount, errors=$errorCount"
-        )
-        runOnUiThread {
-            tvBinStatus.text =
-                "BIN-Check fertig: ${bytes.size} B, Chunks=$nonEmptyChunks, OK=$okCount, Fehler=$errorCount (Logcat: BIN_DEBUG)"
-        }
-    }
-
-    private fun ByteArray.splitOnByte(separator: Byte): List<ByteArray> {
-        val result = mutableListOf<ByteArray>()
-        var start = 0
-        for (i in indices) {
-            if (this[i] == separator) {
-                result.add(if (i > start) copyOfRange(start, i) else ByteArray(0))
-                start = i + 1
-            }
-        }
-        if (start < size) result.add(copyOfRange(start, size))
-        return result
     }
 
     // --- SerialInputOutputManager.Listener ---
