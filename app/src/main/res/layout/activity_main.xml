@@ -63,18 +63,18 @@
                 <!-- Ein einziger Start/Stop-Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRecord"
+                    style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Aufnahme starten"
-                    android:textAllCaps="false"
                     android:layout_marginTop="12dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnUsb"
+                    style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="OBS Lite verbinden"
-                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
 
                 <!-- USB-Status als kleiner, dezenter Text -->
@@ -263,26 +263,36 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnDebugBin"
+                    style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Letzte BIN prüfen"
-                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
+
+                <!-- Hier erscheinen die BIN-Werte direkt unter dem Button -->
+                <TextView
+                    android:id="@+id/tvBinStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="13sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginTop="4dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnOpenUpload"
+                    style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Upload ins Portal"
-                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnShowFiles"
+                    style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Aufgezeichnete Fahrten"
-                    android:textAllCaps="false"
                     android:layout_marginTop="8dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

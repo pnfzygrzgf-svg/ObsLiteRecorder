@@ -9,9 +9,19 @@
     <color name="text_secondary">#757575</color>
     <color name="border_soft">#E0E0E0</color>
 
-    <!-- Akzentfarbe (für Buttons etc.) -->
-    <color name="accent">#6750A4</color>
+    <!-- Akzentfarbe (z.B. Links / Hervorhebungen) -->
+    <color name="accent">#2A7593</color>
 
-    <!-- Splash-Hintergrund (jetzt auch weiß) -->
+    <!-- Button-Farben -->
+    <!-- Hauptfarbe -->
+    <color name="btn_primary_bg">#2A7593</color>
+    <!-- Ziel-/Wechselfarbe -->
+    <color name="btn_primary_light">#2DA3D2</color>
+    <!-- etwas dunklere Variante für "pressed" -->
+    <color name="btn_primary_dark">#20556C</color>
+    <!-- halbtransparente Ripple-Farbe -->
+    <color name="btn_primary_ripple">#332A7593</color>
+
+    <!-- Splash-Hintergrund -->
     <color name="splash_background">@color/white</color>
 </resources>

@@ -86,6 +86,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private lateinit var btnOpenUpload: Button
     private lateinit var btnShowFiles: Button
     private lateinit var tvUsbStatus: TextView
+    private lateinit var tvBinStatus: TextView
     private lateinit var tvLeftDistance: TextView
     private lateinit var tvRightDistance: TextView
     private lateinit var tvOvertakeDistance: TextView
@@ -171,6 +172,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
         btnOpenUpload = findViewById(R.id.btnOpenUpload)
         btnShowFiles = findViewById(R.id.btnShowFiles)
         tvUsbStatus = findViewById(R.id.tvUsbStatus)
+        tvBinStatus = findViewById(R.id.tvBinStatus)
         tvLeftDistance = findViewById(R.id.tvLeftDistance)
         tvRightDistance = findViewById(R.id.tvRightDistance)
         tvOvertakeDistance = findViewById(R.id.tvOvertakeDistance)
@@ -185,7 +187,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
 
         // Debug .bin
         findViewById<Button?>(R.id.btnDebugBin)?.setOnClickListener {
-            tvUsbStatus.text = "BIN-Check läuft..."
+            tvBinStatus.text = "BIN-Check läuft..."
             debugValidateLastBin()
         }
 
@@ -568,7 +570,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             ?.sortedBy { it.lastModified() } ?: emptyList()
         if (files.isEmpty()) {
             Log.e("BIN_DEBUG", "Keine .bin-Datei gefunden")
-            runOnUiThread { tvUsbStatus.text = "BIN-Check: keine .bin-Datei gefunden" }
+            runOnUiThread { tvBinStatus.text = "BIN-Check: keine .bin-Datei gefunden" }
             return
         }
 
@@ -582,7 +584,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             for (i in 0 until previewLen) append(String.format("%02X ", bytes[i]))
         }
         Log.d("BIN_DEBUG", "Hex-Vorschau (max 64 B): $hexPreview")
-        runOnUiThread { tvUsbStatus.text = "BIN-Check: ${file.name} (${bytes.size} B)" }
+        runOnUiThread { tvBinStatus.text = "BIN-Check: ${file.name} (${bytes.size} B)" }
 
         val chunks: List<ByteArray> = bytes.splitOnByte(0x00.toByte())
         Log.d("BIN_DEBUG", "Anzahl Chunks (inkl. evtl. leerer): ${chunks.size}")
@@ -619,7 +621,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
             "Auswertung: nonEmptyChunks=$nonEmptyChunks, ok=$okCount, errors=$errorCount"
         )
         runOnUiThread {
-            tvUsbStatus.text =
+            tvBinStatus.text =
                 "BIN-Check fertig: ${bytes.size} B, Chunks=$nonEmptyChunks, OK=$okCount, Fehler=$errorCount (Logcat: BIN_DEBUG)"
         }
     }

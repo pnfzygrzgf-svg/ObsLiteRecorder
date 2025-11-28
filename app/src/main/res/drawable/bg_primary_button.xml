@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Gedrückter Zustand: heller -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:startColor="@color/btn_primary_light"
+                android:endColor="@color/btn_primary_light"
+                android:angle="90" />
+        </shape>
+    </item>
+
+    <!-- Normaler Zustand: dunkel -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:startColor="@color/btn_primary_bg"
+                android:endColor="@color/btn_primary_dark"
+                android:angle="90" />
+        </shape>
+    </item>
+
+</selector>
