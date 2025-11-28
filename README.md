@@ -14,8 +14,9 @@ Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 # Screenshots
 
 <img width="240" height="533" alt="Screenshot_20251128-115543" src="https://github.com/user-attachments/assets/2b76f689-6b84-449e-bce8-3dc29ca967d0" />
-<img width="240" height="533" alt="Screenshot_20251128-115520" src="https://github.com/user-attachments/assets/d39ee6c0-b948-4194-9457-2b22574d36a1" />
 <img width="240" height="533" alt="Screenshot_20251128-115410" src="https://github.com/user-attachments/assets/08b9878e-515f-4efd-863b-84bfcfe5b2e2" />
+<img width="240" height="533" alt="Screenshot_20251128-115520" src="https://github.com/user-attachments/assets/d39ee6c0-b948-4194-9457-2b22574d36a1" />
+
 <img width="240" height="533" alt="Screenshot_20251128-115245" src="https://github.com/user-attachments/assets/dbef0db9-8cb1-4b87-abc4-de1357a05f1a" />
 
 
