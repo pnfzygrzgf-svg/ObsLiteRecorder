@@ -1,155 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:padding="16dp"
     android:background="@color/white">
 
-    <LinearLayout
+    <!-- Upload ins Portal -->
+    <TextView
+        android:id="@+id/tvUploadTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OpenBikeSensor Portal Upload"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:layout_marginBottom="16dp" />
+
+    <!-- OBS-Lite URL -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:text="OBS-Lite URL"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="8dp" />
 
-        <!-- Upload ins Portal -->
-        <TextView
-            android:id="@+id/tvUploadTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="OpenBikeSensor Portal Upload"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginBottom="16dp" />
+    <EditText
+        android:id="@+id/etObsUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="z.B. https://mein-server"
+        android:inputType="textUri" />
 
-        <!-- OBS-Lite URL -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="OBS-Lite URL"
-            android:textColor="@color/text_primary"
-            android:layout_marginTop="8dp" />
+    <!-- API-Key -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="API-Key"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="8dp" />
 
-        <EditText
-            android:id="@+id/etObsUrl"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="z.B. https://mein-server"
-            android:inputType="textUri" />
+    <EditText
+        android:id="@+id/etApiKey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="API-Key eingeben"
+        android:inputType="textPassword" />
 
-        <!-- API-Key -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="API-Key"
-            android:textColor="@color/text_primary"
-            android:layout_marginTop="8dp" />
+    <!-- Dateiauswahl: Spinner -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="BIN-Datei auswählen"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="12dp" />
 
-        <EditText
-            android:id="@+id/etApiKey"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="API-Key eingeben"
-            android:inputType="textPassword" />
+    <Spinner
+        android:id="@+id/spFileName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
-        <!-- Dateiauswahl: Spinner -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="BIN-Datei auswählen"
-            android:textColor="@color/text_primary"
-            android:layout_marginTop="12dp" />
+    <!-- Upload-Button (Material) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnUpload"
+        style="@style/Widget.App.PrimaryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Datei hochladen"
+        android:layout_marginTop="16dp" />
 
-        <Spinner
-            android:id="@+id/spFileName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+    <!-- Statusanzeige -->
+    <TextView
+        android:id="@+id/tvUploadStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: noch kein Upload"
+        android:textColor="@color/text_secondary"
+        android:layout_marginTop="16dp" />
 
-        <!-- Upload-Button (Material) -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnUpload"
-            style="@style/Widget.App.PrimaryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Datei hochladen"
-            android:layout_marginTop="16dp" />
+    <!-- Trenner -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border_soft"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp" />
 
-        <!-- Statusanzeige -->
-        <TextView
-            android:id="@+id/tvUploadStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Status: noch kein Upload"
-            android:textColor="@color/text_secondary"
-            android:layout_marginTop="16dp" />
+    <!-- BIN-Check (nach oben gezogen, damit alles ohne ScrollView nutzbar bleibt) -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Letzte BIN prüfen"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary" />
 
-        <!-- Trenner -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/border_soft"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="16dp" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDebugBin"
+        style="@style/Widget.App.PrimaryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Letzte BIN prüfen"
+        android:layout_marginTop="8dp" />
 
-        <!-- Aufgezeichnete Fahrten -->
-        <TextView
-            android:id="@+id/tvFilesHeader"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Aufgezeichnete Fahrten"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginBottom="16dp" />
+    <TextView
+        android:id="@+id/tvBinStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="13sp"
+        android:textColor="@color/text_secondary"
+        android:layout_marginTop="4dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDeleteAll"
-            style="@style/Widget.App.PrimaryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Alle Fahrten löschen" />
+    <!-- Trenner -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border_soft"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp" />
 
-        <ListView
-            android:id="@+id/listFiles"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:dividerHeight="1dp"
-            android:divider="@color/border_soft" />
+    <!-- Aufgezeichnete Fahrten -->
+    <TextView
+        android:id="@+id/tvFilesHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Aufgezeichnete Fahrten"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:layout_marginBottom="16dp" />
 
-        <!-- Trenner -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/border_soft"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="16dp" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDeleteAll"
+        style="@style/Widget.App.PrimaryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Alle Fahrten löschen" />
 
-        <!-- BIN-Check -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Letzte BIN prüfen"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary" />
+    <!-- Die ListView bekommt jetzt den restlichen Platz über layout_weight -->
+    <ListView
+        android:id="@+id/listFiles"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp"
+        android:dividerHeight="1dp"
+        android:divider="@color/border_soft" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDebugBin"
-            style="@style/Widget.App.PrimaryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Letzte BIN prüfen"
-            android:layout_marginTop="8dp" />
-
-        <TextView
-            android:id="@+id/tvBinStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="13sp"
-            android:textColor="@color/text_secondary"
-            android:layout_marginTop="4dp" />
-
-    </LinearLayout>
-</ScrollView>
+</LinearLayout>
