@@ -25,7 +25,12 @@ import androidx.core.content.ContextCompat
 import com.example.obsliterecorder.R
 import com.example.obsliterecorder.proto.Event
 import com.example.obsliterecorder.util.CobsUtils
-import com.google.android.gms.location.*
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.protobuf.InvalidProtocolBufferException
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
@@ -72,6 +77,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     private var usbDevice: UsbDevice? = null
     private var usbIoManager: SerialInputOutputManager? = null
     private lateinit var usbPort: UsbSerialPort
+
     @Volatile
     private var obsLiteConnected = false
 
@@ -175,7 +181,10 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
      * Hier starten wir die Foreground-Notification.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onStartCommand() id=$startId intent=$intent")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
+            TAG,
+            "onStartCommand() id=$startId intent=$intent"
+        )
         if (!isForeground) {
             startInForeground()
         }
@@ -351,7 +360,10 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             } finally {
                 isRecording = false
                 updateForegroundNotification()
-                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording(): isRecording=$isRecording")
+                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
+                    TAG,
+                    "stopRecording(): isRecording=$isRecording"
+                )
             }
         }
     }
@@ -369,7 +381,10 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             // Rohdaten in Session-COBS-Puffer schieben
             obsSession.fillByteList(data)
             if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "onUsbData(): after fillByteList -> queueSize=${obsSession.debugGetQueueSize()}")
+                Log.d(
+                    TAG,
+                    "onUsbData(): after fillByteList -> queueSize=${obsSession.debugGetQueueSize()}"
+                )
             }
 
             if (!isRecording) {
@@ -427,14 +442,20 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
                 if (System.nanoTime() - startNs > maxDurationNs) {
                     // Batch begrenzen, um UI/andere Tasks nicht zu verhungern
                     if (Log.isLoggable(TAG, Log.DEBUG)) {
-                        Log.d(TAG, "onUsbData(): batching stop after ${handledCount} events / ~50ms")
+                        Log.d(
+                            TAG,
+                            "onUsbData(): batching stop after ${handledCount} events / ~50ms"
+                        )
                     }
                     break
                 }
             }
 
             if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "onUsbData(): handledCount=$handledCount, queueNow=${obsSession.debugGetQueueSize()}")
+                Log.d(
+                    TAG,
+                    "onUsbData(): handledCount=$handledCount, queueNow=${obsSession.debugGetQueueSize()}"
+                )
             }
         }
     }

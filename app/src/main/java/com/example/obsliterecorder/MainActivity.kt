@@ -7,7 +7,6 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -105,7 +104,12 @@ class MainActivity : AppCompatActivity() {
     private var isRecording: Boolean = false
 
     // SharedPreferences für Lenkerbreite
-    private val prefs: SharedPreferences by lazy { getSharedPreferences("obslite_prefs", MODE_PRIVATE) }
+    private val prefs: SharedPreferences by lazy {
+        getSharedPreferences(
+            "obslite_prefs",
+            MODE_PRIVATE
+        )
+    }
 
     // Handler für periodische UI-Updates von Service-Daten
     private val uiHandler = Handler(Looper.getMainLooper())

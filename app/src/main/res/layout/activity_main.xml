@@ -3,27 +3,28 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:fillViewport="true">
 
     <LinearLayout
         android:id="@+id/main"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:gravity="center_horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="16dp">
 
         <!-- Header: Logo + App-Titel -->
         <ImageView
             android:id="@+id/imgLogo"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher_round" />
 
+        <!--
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
@@ -33,6 +34,7 @@
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:layout_marginBottom="16dp" />
+            -->
 
         <!-- Sektion: Aufnahme & USB -->
         <com.google.android.material.card.MaterialCardView
@@ -41,8 +43,8 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="false"
             app:cardElevation="0dp"
+            app:cardUseCompatPadding="false"
             app:strokeColor="@color/border_soft"
             app:strokeWidth="1dp">
 
@@ -56,9 +58,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Aufnahme"
-                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
                     android:textSize="18sp"
-                    android:textColor="@color/text_primary" />
+                    android:textStyle="bold" />
 
                 <!-- Ein einziger Start/Stop-Button -->
                 <com.google.android.material.button.MaterialButton
@@ -66,26 +68,26 @@
                     style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Aufnahme starten"
-                    android:layout_marginTop="12dp" />
+                    android:layout_marginTop="12dp"
+                    android:text="Aufnahme starten" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnUsb"
                     style="@style/Widget.App.PrimaryButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="OBS Lite verbinden"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:text="OBS Lite verbinden" />
 
                 <!-- USB-Status als kleiner, dezenter Text -->
                 <TextView
                     android:id="@+id/tvUsbStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:text="USB: nicht verbunden"
-                    android:textSize="12sp"
                     android:textColor="@color/text_secondary"
-                    android:layout_marginTop="4dp" />
+                    android:textSize="12sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -96,24 +98,24 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="false"
             app:cardElevation="0dp"
+            app:cardUseCompatPadding="false"
             app:strokeColor="@color/border_soft"
             app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
                 android:orientation="vertical"
-                android:padding="12dp"
-                android:animateLayoutChanges="true">
+                android:padding="12dp">
 
                 <!-- Kopfzeile: Label + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tvHandlebarLabel"
@@ -121,8 +123,8 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Lenkerbreite (cm)"
-                        android:textSize="16sp"
-                        android:textColor="@color/text_primary" />
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleHandlebar"
@@ -137,8 +139,8 @@
                     android:id="@+id/handlebarContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="4dp">
+                    android:layout_marginTop="4dp"
+                    android:orientation="vertical">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
@@ -149,9 +151,9 @@
                             android:id="@+id/etHandlebarWidth"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:hint="z.B. 68"
                             android:inputType="number"
                             android:text="60"
-                            android:hint="z.B. 68"
                             android:textSize="18sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -167,24 +169,24 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="false"
             app:cardElevation="0dp"
+            app:cardUseCompatPadding="false"
             app:strokeColor="@color/border_soft"
             app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
                 android:orientation="vertical"
-                android:padding="12dp"
-                android:animateLayoutChanges="true">
+                android:padding="12dp">
 
                 <!-- Kopfzeile: Titel + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tvSensorTitle"
@@ -192,9 +194,9 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Sensorwerte"
-                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
                         android:textSize="18sp"
-                        android:textColor="@color/text_primary" />
+                        android:textStyle="bold" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleSensor"
@@ -209,8 +211,8 @@
                     android:id="@+id/sensorContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="8dp">
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical">
 
                     <!-- Links / Rechts nebeneinander -->
                     <LinearLayout
@@ -243,12 +245,12 @@
                     android:id="@+id/tvOvertakeDistance"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Überholabstand: -"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"
+                    android:layout_marginTop="8dp"
                     android:gravity="center_horizontal"
-                    android:layout_marginTop="8dp" />
+                    android:text="Überholabstand: -"
+                    android:textColor="@color/text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -260,34 +262,34 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             app:cardCornerRadius="12dp"
-            app:cardUseCompatPadding="false"
             app:cardElevation="0dp"
+            app:cardUseCompatPadding="false"
             app:strokeColor="@color/border_soft"
             app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
                 android:orientation="vertical"
-                android:padding="12dp"
-                android:animateLayoutChanges="true">
+                android:padding="12dp">
 
                 <!-- Zeile: GPS-Status + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tvGpsStatus"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
                         android:layout_weight="1"
                         android:text="GPS: keine Daten"
-                        android:textSize="13sp"
                         android:textColor="@color/text_secondary"
-                        android:layout_marginTop="4dp" />
+                        android:textSize="13sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleMap"
@@ -312,9 +314,9 @@
             style="@style/Widget.App.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Aufgezeichnete Fahrten"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="8dp"
+            android:text="Aufgezeichnete Fahrten" />
 
         <!-- App beenden -->
         <com.google.android.material.button.MaterialButton
@@ -322,9 +324,9 @@
             style="@style/Widget.App.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="App beenden"
             android:layout_marginTop="4dp"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="8dp"
+            android:text="App beenden" />
 
 
         <!-- Link: Über diese App -->
@@ -332,15 +334,15 @@
             android:id="@+id/tvAbout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/about_app_link"
-            android:textSize="18sp"
-            android:textColor="@color/accent"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="24dp"
             android:layout_marginBottom="8dp"
-            android:layout_gravity="center_horizontal"
             android:clickable="true"
             android:focusable="true"
-            android:foreground="?attr/selectableItemBackground" />
+            android:foreground="?attr/selectableItemBackground"
+            android:text="@string/about_app_link"
+            android:textColor="@color/accent"
+            android:textSize="18sp" />
 
     </LinearLayout>
 </ScrollView>

@@ -8,17 +8,21 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.Date
-import java.util.UUID
+import java.util.Locale
 
 class OBSLiteFileWriter(private val context: Context) {
 
     private val TAG = "OBSLiteFileWriter"
 
-    @Volatile private var outputStream: BufferedOutputStream? = null
-    @Volatile private var fileOutputStream: FileOutputStream? = null // für fd.sync()
-    @Volatile private var currentFile: File? = null
+    @Volatile
+    private var outputStream: BufferedOutputStream? = null
+
+    @Volatile
+    private var fileOutputStream: FileOutputStream? = null // für fd.sync()
+
+    @Volatile
+    private var currentFile: File? = null
 
     /**
      * Startet eine neue Aufnahmesession und öffnet die Zieldatei.
@@ -44,10 +48,9 @@ class OBSLiteFileWriter(private val context: Context) {
             return
         }
 
-        // Kollisionsarm: dd_MM_yyyy_HHmmss_SSS + kurze UUID
-        val formatter = SimpleDateFormat("dd_MM_yyyy_HHmmss_SSS", Locale.ROOT)
+        // Kollisionsarm: dd_MM_yyyy_HHmmss
+        val formatter = SimpleDateFormat("ddMMyyyy_HHmmss", Locale.ROOT)
         val timestamp = formatter.format(Date())
-        val suffix = UUID.randomUUID().toString().substring(0, 8)
         val file = File(dir, "fahrt_${timestamp}.bin")
 
         try {
@@ -130,13 +133,21 @@ class OBSLiteFileWriter(private val context: Context) {
         }
     }
 
-    @Synchronized
-    fun getCurrentFileName(): String? = currentFile?.name
+    /*
+@Synchronized
+fun getCurrentFileName(): String? = currentFile?.name
+*/
 
     // Nur intern: nach schwerem I/O-Fehler bestmöglich schließen
     private fun safeCloseOnError() {
-        try { outputStream?.close() } catch (_: IOException) {}
-        try { fileOutputStream?.close() } catch (_: IOException) {}
+        try {
+            outputStream?.close()
+        } catch (_: IOException) {
+        }
+        try {
+            fileOutputStream?.close()
+        } catch (_: IOException) {
+        }
         outputStream = null
         fileOutputStream = null
     }

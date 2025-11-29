@@ -4,7 +4,13 @@ import android.app.AlertDialog
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.TextUtils
-import android.widget.*
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ListView
+import android.widget.Spinner
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
@@ -170,7 +176,8 @@ class DataActivity : AppCompatActivity() {
         }
 
         if (binFiles.isEmpty()) {
-            Toast.makeText(this, "Keine BIN-Dateien zum Hochladen vorhanden.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Keine BIN-Dateien zum Hochladen vorhanden.", Toast.LENGTH_SHORT)
+                .show()
             return
         }
 
@@ -216,7 +223,8 @@ class DataActivity : AppCompatActivity() {
                 e.printStackTrace()
                 runOnUiThread {
                     tvUploadStatus.text = "Status: Ausnahmefehler: ${e.message}"
-                    Toast.makeText(this, "Fehler beim Upload: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Fehler beim Upload: ${e.message}", Toast.LENGTH_LONG)
+                        .show()
                 }
             }
         }.start()
@@ -327,7 +335,10 @@ class DataActivity : AppCompatActivity() {
         val chunks: List<ByteArray> = bytes.splitOnByte(0x00.toByte())
         android.util.Log.d("BIN_DEBUG", "Anzahl Chunks (inkl. evtl. leerer): ${chunks.size}")
 
-        var idx = 0; var okCount = 0; var errorCount = 0; var nonEmptyChunks = 0
+        var idx = 0;
+        var okCount = 0;
+        var errorCount = 0;
+        var nonEmptyChunks = 0
         for (chunk in chunks) {
             if (chunk.isEmpty()) {
                 android.util.Log.d("BIN_DEBUG", "#$idx leerer Chunk")
@@ -336,8 +347,10 @@ class DataActivity : AppCompatActivity() {
             }
             nonEmptyChunks++
             try {
-                val chunkList = java.util.LinkedList<Byte>(); chunk.forEach { b -> chunkList.add(b) }
-                val decoded: ByteArray = com.example.obsliterecorder.util.CobsUtils.decode(chunkList)
+                val chunkList =
+                    java.util.LinkedList<Byte>(); chunk.forEach { b -> chunkList.add(b) }
+                val decoded: ByteArray =
+                    com.example.obsliterecorder.util.CobsUtils.decode(chunkList)
                 val event = com.example.obsliterecorder.proto.Event.parseFrom(decoded)
                 android.util.Log.d(
                     "BIN_DEBUG",

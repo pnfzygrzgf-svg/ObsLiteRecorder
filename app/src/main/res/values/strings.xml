@@ -19,14 +19,14 @@ aufgezeichnet wurden.
 
     <!-- \n macht Zeilenumbrüche in der UI -->
     <string name="about_app_credits">
-        • OpenBikeSensor – https://github.com/openbikesensor\n
+        OpenBikeSensor – https://github.com/openbikesensor\n
         In dieser App wird Code des OpenBikeSensor-Projekts verwendet.
         Die Originalsoftware wird unter der GNU Lesser General Public License (LGPL-3.0) veröffentlicht.\n\n
-        • OpenBikeSensor-Logo – https://github.com/turbo-distortion/OpenBikeSensor-Logo\n
+        OpenBikeSensor-Logo – https://github.com/turbo-distortion/OpenBikeSensor-Logo\n
         Das in dieser App verwendete OpenBikeSensor-Logo wurde von Lukas Betzler als Beitrag zum
         OpenBikeSensor-Projekt erstellt. Das Logo steht unter der Creative-Commons-Lizenz CC BY-SA 4.0.
         Bei Weitergabe oder Anpassungen ist eine Namensnennung und das Teilen unter derselben Lizenz erforderlich.\n\n
-        • SimRa Android App – https://github.com/simra-project/simra-android\n
+        SimRa Android App – https://github.com/simra-project/simra-android\n
         Teile des Quellcodes, insbesondere zur Fahrtenaufzeichnung, basieren auf Code aus der SimRa Android App.
         Diese steht unter der Apache License 2.0.
     </string>
