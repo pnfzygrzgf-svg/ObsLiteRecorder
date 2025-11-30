@@ -1,7 +1,6 @@
 # OBS Lite Recorder
 
-OBS Lite Recorder ist eine Android-App zum Aufzeichnen von Fahrten mit einem *
-*[OpenBikeSensor Lite](https://www.openbikesensor.org/docs/lite/)** und zum Hochladen dieser in ein
+OBS Lite Recorder ist eine Android-App zum Aufzeichnen von Fahrten mit einem **[OpenBikeSensor Lite](https://www.openbikesensor.org/docs/lite/)** und zum Hochladen dieser in ein
 OpenBikeSensor-Portal.
 
 Code, der in dieser App verwendet wird, stammt von:
@@ -13,6 +12,10 @@ Das verwendete Logo wurde erstellt durch Lukas
 Betzler, https://github.com/pnfzygrzgf-svg/OpenBikeSensor-Logo
 
 Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
+
+Es gibt zwei Versionen der App. 
+Branch Main: App muss im Vordergrund sein.
+Branch main_Foreground-Service-Variante: App zeichnet die Fahrten auch auf, wenn sie im Hintergrund ist.
 
 # Screenshots
 
