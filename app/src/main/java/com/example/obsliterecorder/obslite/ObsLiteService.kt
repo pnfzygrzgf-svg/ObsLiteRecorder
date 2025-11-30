@@ -25,8 +25,10 @@ class ObsLiteService : Service() {
     private lateinit var obsSession: OBSLiteSession
     private lateinit var fileWriter: OBSLiteFileWriter
 
-    @Volatile private var isRecording: Boolean = false
-    @Volatile private var lastLocation: Location? = null
+    @Volatile
+    private var isRecording: Boolean = false
+    @Volatile
+    private var lastLocation: Location? = null
 
     // Single-threaded I/O: garantiert Reihenfolge, erspart synchronized
     private lateinit var ioThread: HandlerThread
@@ -98,7 +100,10 @@ class ObsLiteService : Service() {
                 Log.e(TAG, "stopRecording(): error closing file", e)
             } finally {
                 isRecording = false
-                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording(): isRecording=$isRecording")
+                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
+                    TAG,
+                    "stopRecording(): isRecording=$isRecording"
+                )
             }
         }
     }
@@ -116,7 +121,10 @@ class ObsLiteService : Service() {
             // Rohdaten in Session-COBS-Puffer schieben
             obsSession.fillByteList(data)
             if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "onUsbData(): after fillByteList -> queueSize=${obsSession.debugGetQueueSize()}")
+                Log.d(
+                    TAG,
+                    "onUsbData(): after fillByteList -> queueSize=${obsSession.debugGetQueueSize()}"
+                )
             }
 
             if (!isRecording) {
@@ -174,14 +182,20 @@ class ObsLiteService : Service() {
                 if (System.nanoTime() - startNs > maxDurationNs) {
                     // Batch begrenzen, um UI/andere Tasks nicht zu verhungern
                     if (Log.isLoggable(TAG, Log.DEBUG)) {
-                        Log.d(TAG, "onUsbData(): batching stop after ${handledCount} events / ~50ms")
+                        Log.d(
+                            TAG,
+                            "onUsbData(): batching stop after ${handledCount} events / ~50ms"
+                        )
                     }
                     break
                 }
             }
 
             if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "onUsbData(): handledCount=$handledCount, queueNow=${obsSession.debugGetQueueSize()}")
+                Log.d(
+                    TAG,
+                    "onUsbData(): handledCount=$handledCount, queueNow=${obsSession.debugGetQueueSize()}"
+                )
             }
         }
     }

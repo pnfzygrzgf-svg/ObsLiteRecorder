@@ -2,7 +2,12 @@
 package com.example.obsliterecorder
 
 import android.app.PendingIntent
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.Drawable
@@ -25,11 +30,15 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.obsliterecorder.obslite.ObsLiteService
 import com.example.obsliterecorder.obslite.OBSLiteSession
+import com.example.obsliterecorder.obslite.ObsLiteService
 import com.example.obsliterecorder.proto.Event
 import com.example.obsliterecorder.util.CobsUtils
-import com.google.android.gms.location.*
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.material.button.MaterialButton
 import com.google.protobuf.InvalidProtocolBufferException
 import com.hoho.android.usbserial.driver.UsbSerialPort
@@ -527,6 +536,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener {
     private fun saveHandlebarWidthCm(widthCm: Int) {
         prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
     }
+
     private fun getHandlebarWidthCm(): Int {
         val text = etHandlebarWidth.text?.toString()?.trim()
         return text?.toIntOrNull() ?: loadHandlebarWidthCm()

@@ -81,7 +81,10 @@ class OBSLiteSession(private val context: Context) {
             // Frame ist unvollständig → zurücklegen und später erneut versuchen
             byteListQueue.addFirst(rawList)
             if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "handleEvent(): incomplete frame (no 0x00), re-queued; queueSize=${byteListQueue.size}")
+                Log.d(
+                    TAG,
+                    "handleEvent(): incomplete frame (no 0x00), re-queued; queueSize=${byteListQueue.size}"
+                )
             }
             return null
         }
@@ -159,7 +162,10 @@ class OBSLiteSession(private val context: Context) {
                 val rawMeters = rawDm.distance
 
                 if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(TAG, "handleEvent(): DM event, sourceId=${rawDm.sourceId}, raw=${rawMeters}m")
+                    Log.d(
+                        TAG,
+                        "handleEvent(): DM event, sourceId=${rawDm.sourceId}, raw=${rawMeters}m"
+                    )
                 }
 
                 // (1) Rohwert-Event (nur Smartphone-Zeit)
@@ -249,7 +255,10 @@ class OBSLiteSession(private val context: Context) {
                         )
                     }
                 } else {
-                    if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "handleEvent(): UserInput: no median yet")
+                    if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
+                        TAG,
+                        "handleEvent(): UserInput: no median yet"
+                    )
                 }
 
                 // === GENERIC ===

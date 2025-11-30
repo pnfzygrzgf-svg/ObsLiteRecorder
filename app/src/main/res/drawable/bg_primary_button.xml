@@ -5,10 +5,7 @@
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
             <corners android:radius="24dp" />
-            <gradient
-                android:startColor="@color/btn_primary_light"
-                android:endColor="@color/btn_primary_light"
-                android:angle="90" />
+            <gradient android:angle="90" android:endColor="@color/btn_primary_light" android:startColor="@color/btn_primary_light" />
         </shape>
     </item>
 
@@ -16,10 +13,7 @@
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="24dp" />
-            <gradient
-                android:startColor="@color/btn_primary_bg"
-                android:endColor="@color/btn_primary_dark"
-                android:angle="90" />
+            <gradient android:angle="90" android:endColor="@color/btn_primary_dark" android:startColor="@color/btn_primary_bg" />
         </shape>
     </item>
 

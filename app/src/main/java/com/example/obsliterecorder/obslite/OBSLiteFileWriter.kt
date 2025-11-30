@@ -8,17 +8,20 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class OBSLiteFileWriter(private val context: Context) {
 
     private val TAG = "OBSLiteFileWriter"
 
-    @Volatile private var outputStream: BufferedOutputStream? = null
-    @Volatile private var fileOutputStream: FileOutputStream? = null // für fd.sync()
-    @Volatile private var currentFile: File? = null
+    @Volatile
+    private var outputStream: BufferedOutputStream? = null
+    @Volatile
+    private var fileOutputStream: FileOutputStream? = null // für fd.sync()
+    @Volatile
+    private var currentFile: File? = null
 
     /**
      * Startet eine neue Aufnahmesession und öffnet die Zieldatei.
@@ -135,8 +138,14 @@ class OBSLiteFileWriter(private val context: Context) {
 
     // Nur intern: nach schwerem I/O-Fehler bestmöglich schließen
     private fun safeCloseOnError() {
-        try { outputStream?.close() } catch (_: IOException) {}
-        try { fileOutputStream?.close() } catch (_: IOException) {}
+        try {
+            outputStream?.close()
+        } catch (_: IOException) {
+        }
+        try {
+            fileOutputStream?.close()
+        } catch (_: IOException) {
+        }
         outputStream = null
         fileOutputStream = null
     }

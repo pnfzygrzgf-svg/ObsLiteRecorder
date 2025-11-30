@@ -1,30 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/white"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@color/white">
+    android:padding="16dp">
 
     <!-- Upload ins Portal -->
     <TextView
         android:id="@+id/tvUploadTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
         android:text="OpenBikeSensor Portal Upload"
-        android:textSize="22sp"
-        android:textStyle="bold"
         android:textColor="@color/text_primary"
-        android:layout_marginBottom="16dp" />
+        android:textSize="22sp"
+        android:textStyle="bold" />
 
     <!-- OBS-Lite URL -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:text="OBS-Lite URL"
-        android:textColor="@color/text_primary"
-        android:layout_marginTop="8dp" />
+        android:textColor="@color/text_primary" />
 
     <EditText
         android:id="@+id/etObsUrl"
@@ -37,9 +36,9 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:text="API-Key"
-        android:textColor="@color/text_primary"
-        android:layout_marginTop="8dp" />
+        android:textColor="@color/text_primary" />
 
     <EditText
         android:id="@+id/etApiKey"
@@ -52,9 +51,9 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
         android:text="BIN-Datei auswählen"
-        android:textColor="@color/text_primary"
-        android:layout_marginTop="12dp" />
+        android:textColor="@color/text_primary" />
 
     <Spinner
         android:id="@+id/spFileName"
@@ -67,70 +66,70 @@
         style="@style/Widget.App.PrimaryButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Datei hochladen"
-        android:layout_marginTop="16dp" />
+        android:layout_marginTop="16dp"
+        android:text="Datei hochladen" />
 
     <!-- Statusanzeige -->
     <TextView
         android:id="@+id/tvUploadStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
         android:text="Status: noch kein Upload"
-        android:textColor="@color/text_secondary"
-        android:layout_marginTop="16dp" />
+        android:textColor="@color/text_secondary" />
 
     <!-- Trenner -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/border_soft"
         android:layout_marginTop="24dp"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp"
+        android:background="@color/border_soft" />
 
     <!-- BIN-Check (nach oben gezogen, damit alles ohne ScrollView nutzbar bleibt) -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Letzte BIN prüfen"
+        android:textColor="@color/text_primary"
         android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="@color/text_primary" />
+        android:textStyle="bold" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDebugBin"
         style="@style/Widget.App.PrimaryButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Letzte BIN prüfen"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="8dp"
+        android:text="Letzte BIN prüfen" />
 
     <TextView
         android:id="@+id/tvBinStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:text=""
-        android:textSize="13sp"
         android:textColor="@color/text_secondary"
-        android:layout_marginTop="4dp" />
+        android:textSize="13sp" />
 
     <!-- Trenner -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/border_soft"
         android:layout_marginTop="24dp"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp"
+        android:background="@color/border_soft" />
 
     <!-- Aufgezeichnete Fahrten -->
     <TextView
         android:id="@+id/tvFilesHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
         android:text="Aufgezeichnete Fahrten"
-        android:textSize="22sp"
-        android:textStyle="bold"
         android:textColor="@color/text_primary"
-        android:layout_marginBottom="16dp" />
+        android:textSize="22sp"
+        android:textStyle="bold" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDeleteAll"
@@ -144,9 +143,9 @@
         android:id="@+id/listFiles"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
         android:layout_marginTop="16dp"
-        android:dividerHeight="1dp"
-        android:divider="@color/border_soft" />
+        android:layout_weight="1"
+        android:divider="@color/border_soft"
+        android:dividerHeight="1dp" />
 
 </LinearLayout>

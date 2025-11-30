@@ -33,14 +33,14 @@
         <!-- Über diese App – nutzt das App-Theme -->
         <activity
             android:name=".AboutActivity"
-            android:label="@string/about_app_title"
-            android:exported="false" />
+            android:exported="false"
+            android:label="@string/about_app_title" />
 
         <!-- NEU: Seite für Upload + Fahrten + BIN-Check -->
         <activity
             android:name=".DataActivity"
-            android:label="Aufgezeichnete Fahrten"
-            android:exported="false" />
+            android:exported="false"
+            android:label="Aufgezeichnete Fahrten" />
 
         <service
             android:name=".obslite.ObsLiteService"
