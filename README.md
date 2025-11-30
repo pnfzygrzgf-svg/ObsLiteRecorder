@@ -14,7 +14,9 @@ Betzler, https://github.com/pnfzygrzgf-svg/OpenBikeSensor-Logo
 Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 
 Es gibt zwei Versionen der App. 
+
 Branch Main: App muss im Vordergrund sein.
+
 Branch main_Foreground-Service-Variante: App zeichnet die Fahrten auch auf, wenn sie im Hintergrund ist.
 
 # Screenshots
