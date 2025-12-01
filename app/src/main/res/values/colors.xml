@@ -12,18 +12,20 @@
     <!-- Akzentfarbe (z.B. Links / Hervorhebungen) -->
     <color name="accent">#2A7593</color>
 
-    <!-- Button-Farben -->
-    <!-- Hauptfarbe -->
+    <!-- Button-Farben (helles Theme) -->
     <color name="btn_primary_bg">#20556C</color>
-    <!-- Ziel-/Wechselfarbe -->
     <color name="btn_primary_light">#2DA3D2</color>
-    <!-- etwas dunklere Variante für "pressed" -->
     <color name="btn_primary_dark">#2A7593</color>
-    <!-- halbtransparente Ripple-Farbe -->
     <color name="btn_primary_ripple">#332A7593</color>
+
+    <!-- Text auf Primary-/Comic-Buttons im hellen Theme -->
+    <color name="btn_primary_text">@color/white</color>
 
     <!-- Zentrale Randfarbe für Buttons / Comic-Ränder -->
     <color name="btn_border">#2DA3D2</color>
+
+    <!-- Hintergrund der Main-Activity im hellen Theme -->
+    <color name="background_main">@color/white</color>
 
     <!-- Splash-Hintergrund -->
     <color name="splash_background">@color/white</color>

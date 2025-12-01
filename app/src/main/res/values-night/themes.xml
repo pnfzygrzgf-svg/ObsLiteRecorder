@@ -1,7 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme. -->
+
+    <!-- Basis-App-Theme im Dark Mode -->
     <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+
+        <!-- Fenster-Hintergrund im Dark Mode -->
+        <item name="android:windowBackground">@color/black</item>
+
+        <!-- Material-Oberflächen: dunkler Hintergrund -->
+        <item name="colorSurface">@color/black</item>
+
+        <!-- Textfarben (kommen aus values-night/colors.xml,
+             dort sollten text_primary = weiß, text_secondary = leicht transparent sein) -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
+        <!-- Globale Schriftart bleibt gleich -->
+        <item name="android:fontFamily">@font/open_sans_condensed</item>
+        <item name="fontFamily">@font/open_sans_condensed</item>
+
+        <!-- Statusleiste: dunkel + helle Icons -->
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Navigationsleiste: dunkel + helle Icons -->
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
+
+    <!-- Theme.ObsLiteRecorder & Launcher fallen automatisch auf die
+         Definition aus values/themes.xml zurück und nutzen dort Farben,
+         die ihrerseits Night-Varianten haben (z.B. splash_background). -->
+
 </resources>

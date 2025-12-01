@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/background_main"
     android:fillViewport="true">
 
     <LinearLayout
@@ -22,7 +22,7 @@
             android:layout_marginTop="20dp"
             android:layout_marginBottom="20dp"
             android:contentDescription="@string/app_name"
-            android:src="@mipmap/ic_launcher_round" />
+            android:src="@drawable/logo_obs_lite" />
 
         <!-- Sektion: Aufnahme & USB -->
         <com.google.android.material.card.MaterialCardView
@@ -45,7 +45,6 @@
                 android:paddingBottom="12dp"
                 android:paddingTop="10dp">
 
-                <!-- Ein einziger Start/Stop-Button (Comic-Style) -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRecord"
                     style="@style/Widget.App.ComicButton"
@@ -68,7 +67,6 @@
                     app:iconPadding="4dp"
                     app:iconGravity="textStart" />
 
-                <!-- USB-Status als kleiner, dezenter Text -->
                 <TextView
                     android:id="@+id/tvUsbStatus"
                     android:layout_width="wrap_content"
@@ -99,7 +97,6 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <!-- Kopfzeile: Label + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -126,7 +123,6 @@
                         app:iconGravity="textEnd" />
                 </LinearLayout>
 
-                <!-- Inhalt, der ein-/ausgeblendet wird -->
                 <LinearLayout
                     android:id="@+id/handlebarContent"
                     android:layout_width="match_parent"
@@ -154,7 +150,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Sektion: Sensorwerte (links/rechts ein-/ausblendbar, Überholabstand immer sichtbar) -->
+        <!-- Sektion: Sensorwerte -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -173,7 +169,6 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <!-- Kopfzeile: Titel + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -201,7 +196,6 @@
                         app:iconGravity="textEnd" />
                 </LinearLayout>
 
-                <!-- Inhalt, der ein-/ausgeblendet wird (Links/Rechts) -->
                 <LinearLayout
                     android:id="@+id/sensorContent"
                     android:layout_width="match_parent"
@@ -209,7 +203,6 @@
                     android:layout_marginTop="8dp"
                     android:orientation="vertical">
 
-                    <!-- Links / Rechts nebeneinander -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -235,7 +228,6 @@
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Überholabstand prominent – bleibt immer sichtbar -->
                 <TextView
                     android:id="@+id/tvOvertakeDistance"
                     android:layout_width="match_parent"
@@ -249,8 +241,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-
-        <!-- Sektion: GPS & Karte (mit Toggle) -->
+        <!-- Sektion: GPS & Karte -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -269,7 +260,6 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <!-- Zeile: GPS-Status + Toggle-Button -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -306,7 +296,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- NEU: Nur noch EIN Button für Unterseite -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpenData"
             style="@style/Widget.App.ComicButton"
@@ -321,7 +310,6 @@
             app:iconPadding="6dp"
             app:iconGravity="textStart" />
 
-        <!-- App beenden -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExit"
             style="@style/Widget.App.ComicButton"
@@ -336,7 +324,6 @@
             app:iconPadding="6dp"
             app:iconGravity="textStart" />
 
-        <!-- Link: Über diese App -->
         <TextView
             android:id="@+id/tvAbout"
             android:layout_width="wrap_content"
