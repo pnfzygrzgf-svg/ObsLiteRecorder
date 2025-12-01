@@ -1,12 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
+    android:width="800dp"
+    android:height="800dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-
-    <!-- Pfeil nach unten (Chevron) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M7,10 L12,15 L17,10 L15.6,8.6 L12,12.2 L8.4,8.6 Z" />
+  <path
+      android:pathData="M5.161,10.073C4.454,9.265 5.028,8 6.102,8H17.898C18.972,8 19.546,9.265 18.839,10.073L13.317,16.384C12.62,17.181 11.38,17.181 10.683,16.384L5.161,10.073ZM6.653,9.5L11.812,15.396C11.911,15.51 12.089,15.51 12.188,15.396L17.347,9.5H6.653Z"
+      android:fillColor="#212121"/>
 </vector>

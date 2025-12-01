@@ -306,7 +306,7 @@
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
             android:text="Aufgezeichnete Fahrten"
-            app:icon="@drawable/ic_directions_bike"
+            app:icon="@drawable/ic_location_bike"
             app:iconPadding="6dp"
             app:iconGravity="textStart" />
 
