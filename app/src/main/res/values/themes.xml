@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Basis-App-Theme: sehr clean, alles weiß -->
+    <!-- Basis-App-Theme: hell, clean -->
     <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
 
         <!-- Fenster-Hintergrund -->
         <item name="android:windowBackground">@color/white</item>
 
-        <!-- Material-Oberflächen ebenfalls weiß -->
+        <!-- Material-Oberflächen -->
         <item name="colorSurface">@color/white</item>
 
         <!-- Textfarben -->
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
 
-        <!-- Globale Schriftart -->
+        <!-- Schriftart -->
         <item name="android:fontFamily">@font/open_sans_condensed</item>
         <item name="fontFamily">@font/open_sans_condensed</item>
 
@@ -27,26 +27,28 @@
         <item name="android:windowLightNavigationBar">true</item>
     </style>
 
-    <!-- Normales App-Theme (nach dem Splashscreen) -->
+    <!-- Normales App-Theme -->
     <style name="Theme.ObsLiteRecorder" parent="Base.Theme.ObsLiteRecorder" />
 
-    <!-- Launcher-/Splash-Theme -->
-    <style name="Theme.ObsLiteRecorder.Launcher" parent="Base.Theme.ObsLiteRecorder">
-        <!-- Hintergrund für ältere Android-Versionen -->
-        <item name="android:windowBackground">@drawable/splash_screen</item>
+    <!-- Launcher-/Splash-Theme (hell) -->
+    <style name="Theme.ObsLiteRecorder.Launcher" parent="Theme.SplashScreen">
 
-        <!-- Jetpack SplashScreen (Android 12+ & core-splashscreen) -->
+        <!-- Vollbild-Hintergrund: weiß -->
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/obs_splash_logo</item>
-        <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
 
-        <!-- Helle Navigationsleiste auch während des Splashscreens -->
+        <!-- Schwarzes Logo (drawable/obs_splash_logo.xml) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/obs_splash_logo</item>
+
+        <!-- KEIN Icon-Hintergrund-Kreis mehr! -->
+
+        <!-- Nach dem Splashscreen auf das App-Theme wechseln -->
+        <item name="postSplashScreenTheme">@style/Theme.ObsLiteRecorder</item>
+
+        <!-- Optional: Systemleisten während des Splashscreens -->
         <item name="android:navigationBarColor">@color/white</item>
         <item name="android:windowLightNavigationBar">true</item>
-
-        <!-- Nach dem Splashscreen -->
-        <item name="postSplashScreenTheme">@style/Theme.ObsLiteRecorder</item>
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
 </resources>
-

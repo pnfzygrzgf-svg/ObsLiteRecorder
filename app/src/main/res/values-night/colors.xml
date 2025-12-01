@@ -30,5 +30,5 @@
     <color name="background_main">#121212</color>
 
     <!-- Splash-Hintergrund im Dark Mode -->
-    <color name="splash_background">@color/black</color>
+    <color name="splash_background">#000000</color>   <!-- schwarzer Hintergrund -->
 </resources>
