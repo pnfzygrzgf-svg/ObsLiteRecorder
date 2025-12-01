@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -13,7 +14,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
 
     // UI
     private lateinit var btnRecord: MaterialButton
-    private lateinit var btnUsb: Button
+    private lateinit var btnUsb: MaterialButton
     private lateinit var tvUsbStatus: TextView
     private lateinit var tvLeftDistance: TextView
     private lateinit var tvRightDistance: TextView
@@ -98,7 +98,9 @@ class MainActivity : AppCompatActivity() {
     private var locationMarker: Marker? = null
     private var defaultLocationIcon: Drawable? = null
 
-    private var recordOriginalTint: android.content.res.ColorStateList? = null
+    private var recordOriginalTint: ColorStateList? = null
+    private var usbOriginalTint: ColorStateList? = null
+    private var mapOriginalTint: ColorStateList? = null
 
     // Lokaler UI-Status (Service hält den echten Aufnahme-Status)
     private var isRecording: Boolean = false
@@ -117,10 +119,29 @@ class MainActivity : AppCompatActivity() {
         override fun run() {
             if (bound && obsService != null) {
                 try {
-                    // USB-Status
-                    tvUsbStatus.text = obsService!!.getUsbStatus()
-                    btnUsb.text =
-                        if (obsService!!.isUsbConnected()) "OBS Lite trennen" else "OBS Lite verbinden"
+                    // USB-Status + Button + Icon
+                    if (obsService!!.isUsbConnected()) {
+                        tvUsbStatus.text = "USB: verbunden"
+                        tvUsbStatus.setTextColor(Color.parseColor("#4CAF50")) // grün
+
+                        btnUsb.text = "OBS Lite trennen"
+                        btnUsb.backgroundTintList =
+                            ColorStateList.valueOf(Color.parseColor("#4CAF50"))
+                        btnUsb.icon = ContextCompat.getDrawable(
+                            this@MainActivity,
+                            R.drawable.ic_link_disconnect
+                        )
+                    } else {
+                        tvUsbStatus.text = "USB: nicht verbunden"
+                        tvUsbStatus.setTextColor(Color.GRAY)
+
+                        btnUsb.text = "OBS Lite verbinden"
+                        btnUsb.backgroundTintList = usbOriginalTint
+                        btnUsb.icon = ContextCompat.getDrawable(
+                            this@MainActivity,
+                            R.drawable.ic_link_connect
+                        )
+                    }
 
                     // Distanzen (Preview)
                     tvLeftDistance.text = obsService!!.getLeftDistanceText()
@@ -200,37 +221,42 @@ class MainActivity : AppCompatActivity() {
         mapView.controller.setZoom(18.0)
         mapView.controller.setCenter(GeoPoint(0.0, 0.0))
 
+        // Original-Tints merken
+        recordOriginalTint = btnRecord.backgroundTintList
+        usbOriginalTint = btnUsb.backgroundTintList
+        mapOriginalTint = btnToggleMap.backgroundTintList
+
         // Karte initial ausblenden
         isMapVisible = false
         mapView.visibility = View.GONE
-        btnToggleMap.text = "Karte anzeigen"
+        updateMapToggleUi()
 
         btnToggleMap.setOnClickListener {
             isMapVisible = !isMapVisible
             mapView.visibility = if (isMapVisible) View.VISIBLE else View.GONE
-            btnToggleMap.text = if (isMapVisible) "Karte ausblenden" else "Karte anzeigen"
+            updateMapToggleUi()
         }
 
         // Lenkerbreite-Bereich initial ausgeblendet
         isHandlebarVisible = false
         handlebarContent.visibility = View.GONE
-        btnToggleHandlebar.text = "Einblenden"
+        updateHandlebarToggleUi()
 
         btnToggleHandlebar.setOnClickListener {
             isHandlebarVisible = !isHandlebarVisible
             handlebarContent.visibility = if (isHandlebarVisible) View.VISIBLE else View.GONE
-            btnToggleHandlebar.text = if (isHandlebarVisible) "Ausblenden" else "Einblenden"
+            updateHandlebarToggleUi()
         }
 
-        // Sensorwerte-Bereich (nur Links/Rechts) initial ausgeblendet
+        // Sensorwerte-Bereich initial ausgeblendet
         isSensorVisible = false
         sensorContent.visibility = View.GONE
-        btnToggleSensor.text = "Einblenden"
+        updateSensorToggleUi()
 
         btnToggleSensor.setOnClickListener {
             isSensorVisible = !isSensorVisible
             sensorContent.visibility = if (isSensorVisible) View.VISIBLE else View.GONE
-            btnToggleSensor.text = if (isSensorVisible) "Ausblenden" else "Einblenden"
+            updateSensorToggleUi()
         }
 
         // Neuer Button -> Unterseite Daten/Upload/Fahrten
@@ -242,9 +268,6 @@ class MainActivity : AppCompatActivity() {
         btnExit.setOnClickListener {
             exitApp()
         }
-
-        // Button-Farbe merken
-        recordOriginalTint = btnRecord.backgroundTintList
 
         // Lenkerbreite
         etHandlebarWidth.setText(loadHandlebarWidthCm().toString())
@@ -279,6 +302,7 @@ class MainActivity : AppCompatActivity() {
         // initial UI
         updateRecordingUi()
         updateGpsStatusNoFix()
+        btnUsb.icon = ContextCompat.getDrawable(this, R.drawable.ic_link_connect)
     }
 
     override fun onStart() {
@@ -335,10 +359,55 @@ class MainActivity : AppCompatActivity() {
         if (isRecording) {
             btnRecord.text = "Aufnahme stoppen"
             btnRecord.backgroundTintList =
-                android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336"))
+                ColorStateList.valueOf(Color.parseColor("#F44336")) // rot
+
+            btnRecord.icon = ContextCompat.getDrawable(this, R.drawable.ic_stop)
         } else {
             btnRecord.text = "Aufnahme starten"
             btnRecord.backgroundTintList = recordOriginalTint
+
+            btnRecord.icon = ContextCompat.getDrawable(this, R.drawable.ic_record)
+        }
+    }
+
+    // --- Lenker-Toggle-UI ---
+    private fun updateHandlebarToggleUi() {
+        if (isHandlebarVisible) {
+            btnToggleHandlebar.text = "Ausblenden"
+            btnToggleHandlebar.icon =
+                ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
+        } else {
+            btnToggleHandlebar.text = "Einblenden"
+            btnToggleHandlebar.icon =
+                ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
+        }
+    }
+
+    // --- Sensor-Toggle-UI ---
+    private fun updateSensorToggleUi() {
+        if (isSensorVisible) {
+            btnToggleSensor.text = "Ausblenden"
+            btnToggleSensor.icon =
+                ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
+        } else {
+            btnToggleSensor.text = "Einblenden"
+            btnToggleSensor.icon =
+                ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
+        }
+    }
+
+    // --- Map-Toggle-UI ---
+    private fun updateMapToggleUi() {
+        if (isMapVisible) {
+            btnToggleMap.text = "Karte ausblenden"
+            btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
+            btnToggleMap.backgroundTintList = ColorStateList.valueOf(
+                ContextCompat.getColor(this, R.color.accent)
+            )
+        } else {
+            btnToggleMap.text = "Karte anzeigen"
+            btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
+            btnToggleMap.backgroundTintList = mapOriginalTint
         }
     }
 
