@@ -1,7 +1,6 @@
 # OBS Lite Recorder
 
-OBS Lite Recorder ist eine Android-App zum Aufzeichnen von Fahrten mit einem *
-*[OpenBikeSensor Lite](https://www.openbikesensor.org/docs/lite/)** und zum Hochladen dieser in ein
+OBS Lite Recorder ist eine Android-App zum Aufzeichnen von Fahrten mit einem **[OpenBikeSensor Lite](https://www.openbikesensor.org/docs/lite/)** und zum Hochladen dieser in ein
 OpenBikeSensor-Portal.
 
 Code, der in dieser App verwendet wird, stammt von:
@@ -16,17 +15,14 @@ Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 
 # Screenshots
 
-<img width="240" height="533" alt="Screenshot_20251128-115245" src="https://github.com/user-attachments/assets/dbef0db9-8cb1-4b87-abc4-de1357a05f1a" />
-
-
-<img width="240" height="533" alt="Screenshot_20251128-115410" src="https://github.com/user-attachments/assets/08b9878e-515f-4efd-863b-84bfcfe5b2e2" />
-<img width="240" height="533" alt="Screenshot_20251128-115520" src="https://github.com/user-attachments/assets/d39ee6c0-b948-4194-9457-2b22574d36a1" />
-
+<img width="240" height="533" alt="Screenshot_20251201-142626" src="https://github.com/user-attachments/assets/8c40bb27-9920-4da1-afe5-f137510bc044" />
+<img width="240" height="533" alt="Screenshot_20251201-142703" src="https://github.com/user-attachments/assets/56d52ad2-a2cd-4071-91c0-8b69917128d0" />
+<img width="240" height="533" alt="Screenshot_20251201-142806" src="https://github.com/user-attachments/assets/8eea369b-ef5b-424a-afa2-01da70a1fa7a" />
+<img width="240" height="533" alt="Screenshot_20251201-142821" src="https://github.com/user-attachments/assets/d1b32884-b8bd-4872-9125-6e4ab38f3e36" />
 
 
 
 
-<img width="240" height="533" alt="Screenshot_20251128-115543" src="https://github.com/user-attachments/assets/2b76f689-6b84-449e-bce8-3dc29ca967d0" />
 
 # APK
 
