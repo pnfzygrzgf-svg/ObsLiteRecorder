@@ -19,8 +19,8 @@
             android:id="@+id/imgLogo"
             android:layout_width="120dp"
             android:layout_height="120dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp"
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher_round" />
 
@@ -34,7 +34,7 @@
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:layout_marginBottom="16dp" />
-            -->
+        -->
 
         <!-- Sektion: Aufnahme & USB -->
         <com.google.android.material.card.MaterialCardView
@@ -52,28 +52,23 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:paddingBottom="12dp"
+                android:paddingTop="10dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Aufnahme"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <!-- Ein einziger Start/Stop-Button -->
+                <!-- Ein einziger Start/Stop-Button (Comic-Style) -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRecord"
-                    style="@style/Widget.App.PrimaryButton"
+                    style="@style/Widget.App.ComicButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="0dp"
                     android:text="Aufnahme starten" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnUsb"
-                    style="@style/Widget.App.PrimaryButton"
+                    style="@style/Widget.App.ComicButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -128,7 +123,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleHandlebar"
-                        style="@style/Widget.App.PrimaryButton"
+                        style="@style/Widget.App.ComicButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Ausblenden" />
@@ -200,7 +195,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleSensor"
-                        style="@style/Widget.App.PrimaryButton"
+                        style="@style/Widget.App.ComicButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Ausblenden" />
@@ -293,7 +288,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleMap"
-                        style="@style/Widget.App.PrimaryButton"
+                        style="@style/Widget.App.ComicButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Karte anzeigen" />
@@ -311,23 +306,26 @@
         <!-- NEU: Nur noch EIN Button für Unterseite -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpenData"
-            style="@style/Widget.App.PrimaryButton"
+            style="@style/Widget.App.ComicButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
             android:text="Aufgezeichnete Fahrten" />
 
         <!-- App beenden -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExit"
-            style="@style/Widget.App.PrimaryButton"
+            style="@style/Widget.App.ComicButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:layout_marginBottom="8dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
             android:text="App beenden" />
-
 
         <!-- Link: Über diese App -->
         <TextView
@@ -335,7 +333,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="50dp"
             android:layout_marginBottom="8dp"
             android:clickable="true"
             android:focusable="true"

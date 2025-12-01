@@ -60,10 +60,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
-    <!-- Upload-Button (Material) -->
+    <!-- Upload-Button (Comic) -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnUpload"
-        style="@style/Widget.App.PrimaryButton"
+        style="@style/Widget.App.ComicButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -86,7 +86,7 @@
         android:layout_marginBottom="16dp"
         android:background="@color/border_soft" />
 
-    <!-- BIN-Check (nach oben gezogen, damit alles ohne ScrollView nutzbar bleibt) -->
+    <!-- BIN-Check -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -97,7 +97,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDebugBin"
-        style="@style/Widget.App.PrimaryButton"
+        style="@style/Widget.App.ComicButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -133,7 +133,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnDeleteAll"
-        style="@style/Widget.App.PrimaryButton"
+        style="@style/Widget.App.ComicButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Alle Fahrten löschen" />
