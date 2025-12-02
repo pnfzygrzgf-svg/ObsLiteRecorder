@@ -1,32 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Basisfarben -->
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
 
-    <!-- Clean UI Farben -->
-    <color name="text_primary">#212121</color>
-    <color name="text_secondary">#757575</color>
-    <color name="border_soft">#E0E0E0</color>
+    <!-- Primärer, plastischer Button (Standard-Button) -->
+    <style name="Widget.App.PrimaryButton" parent="Widget.MaterialComponents.Button">
+        <!-- Tint deaktivieren, damit unser eigenes Drawable sichtbar bleibt -->
+        <item name="backgroundTint">@null</item>
 
-    <!-- Akzentfarbe (z.B. Links / Hervorhebungen) -->
-    <color name="accent">#2A7593</color>
+        <!-- Hintergrund (Drawable mit Verlauf) -->
+        <item name="android:background">@drawable/bg_primary_button</item>
 
-    <!-- Button-Farben (helles Theme) -->
-    <color name="btn_primary_bg">#20556C</color>
-    <color name="btn_primary_light">#2DA3D2</color>
-    <color name="btn_primary_dark">#2A7593</color>
-    <color name="btn_primary_ripple">#332A7593</color>
+        <!-- Text-Eigenschaften: Night-Mode-fähig über Farb-Resource -->
+        <item name="android:textColor">@color/btn_primary_text</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
 
-    <!-- Text auf Primary-/Comic-Buttons im hellen Theme -->
-    <color name="btn_primary_text">@color/white</color>
+        <!-- Höhe & Innenabstand (macht die Buttons schlanker) -->
+        <item name="android:minHeight">40dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingRight">16dp</item>
 
-    <!-- Zentrale Randfarbe für Buttons / Comic-Ränder -->
-    <color name="btn_border">#2DA3D2</color>
+        <!-- Rundung & leichte Höhe -->
+        <item name="cornerRadius">24dp</item>
+        <item name="android:elevation">2dp</item>
+        <item name="pressedTranslationZ">4dp</item>
 
-    <!-- Hintergrund der Main-Activity im hellen Theme -->
-    <color name="background_main">@color/white</color>
+        <!-- Ripple -->
+        <item name="rippleColor">@color/btn_primary_ripple</item>
 
-    <!-- Splash-Hintergrund -->
-    <color name="splash_background">#FFFFFF</color>   <!-- weißer Hintergrund -->
+        <!-- Insets auf 0, damit oben/unten nichts zusätzlich draufkommt -->
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+
+    <!-- Comic-Button mit „hochstehend / reingedrückt“-Effekt -->
+    <style name="Widget.App.ComicButton" parent="Widget.MaterialComponents.Button">
+        <!-- Kein Tint, damit unser eigenes Drawable (Selector) unverändert bleibt -->
+        <item name="backgroundTint">@null</item>
+
+        <!-- Unser Selector: normal + pressed (ohne Schatten) -->
+        <item name="android:background">@drawable/bg_primary_button_comic</item>
+
+        <!-- Text-Eigenschaften: Night-Mode-fähig -->
+        <item name="android:textColor">@color/btn_primary_text</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+
+        <!-- Größe / Innenabstand -->
+        <item name="android:minHeight">40dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingLeft">20dp</item>
+        <item name="android:paddingRight">20dp</item>
+
+        <!-- 3D-Effekt kommt aus den Drawables, nicht aus Elevation -->
+        <item name="android:elevation">0dp</item>
+        <item name="pressedTranslationZ">0dp</item>
+
+        <!-- Ripple-Effekt wie beim Primary-Button -->
+        <item name="rippleColor">@color/btn_primary_ripple</item>
+    </style>
+
+
+    <!-- Dezenter Toggle-Button für „Einblenden“ & „Karte anzeigen“ -->
+    <style name="Widget.App.ToggleButtonDezent" parent="Widget.MaterialComponents.Button">
+        <!-- HINTERGRUND: helles Blau aus colors.xml -->
+        <item name="backgroundTint">@color/btn_primary_bg</item>
+        <item name="android:backgroundTint">@color/btn_primary_bg</item>
+
+        <!-- TEXT & ICON: schwarz -->
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="iconTint">#FFFFFF</item>
+
+        <!-- Etwas dezenter als Comic-Button -->
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textSize">14sp</item>
+
+        <!-- Weniger wuchtig -->
+        <item name="android:minHeight">32dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+
+        <!-- Kein 3D-Effekt / Schatten -->
+        <item name="android:elevation">0dp</item>
+        <item name="pressedTranslationZ">0dp</item>
+
+        <!-- Ripple-Effekt -->
+        <item name="rippleColor">@color/btn_primary_ripple</item>
+    </style>
+
 </resources>

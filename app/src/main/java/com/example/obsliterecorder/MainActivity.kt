@@ -386,11 +386,11 @@ class MainActivity : AppCompatActivity() {
     // --- Sensor-Toggle-UI ---
     private fun updateSensorToggleUi() {
         if (isSensorVisible) {
-            btnToggleSensor.text = "Ausblenden"
+            btnToggleSensor.text = "Werte ausblenden"
             btnToggleSensor.icon =
                 ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
         } else {
-            btnToggleSensor.text = "Einblenden"
+            btnToggleSensor.text = "Werte einblenden"
             btnToggleSensor.icon =
                 ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
         }
