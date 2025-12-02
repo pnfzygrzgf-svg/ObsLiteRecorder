@@ -20,7 +20,7 @@
             android:textSize="22sp"
             android:textStyle="bold" />
 
-        <!-- Intro-Text (wird im Code gesetzt) -->
+        <!-- Intro-Text (wird im Code aus about_app_intro gesetzt) -->
         <TextView
             android:id="@+id/tvAboutIntro"
             android:layout_width="match_parent"

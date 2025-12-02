@@ -51,7 +51,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="0dp"
-                    android:text="Aufnahme starten"
+                    android:text="@string/main_record_start"
                     app:icon="@drawable/ic_record"
                     app:iconPadding="8dp"
                     app:iconGravity="textStart" />
@@ -62,18 +62,18 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="OBS Lite verbinden"
+                    android:text="@string/main_usb_button_connect"
                     app:icon="@drawable/ic_link_connect"
                     app:iconPadding="4dp"
                     app:iconGravity="textStart" />
 
                 <TextView
                     android:id="@+id/tvUsbStatus"
+                    style="@style/Widget.App.CardSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="USB: nicht verbunden"
-                    android:textColor="@color/text_secondary"
+                    android:text="@string/main_usb_status_disconnected"
                     android:textSize="12sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -105,19 +105,18 @@
 
                     <TextView
                         android:id="@+id/tvHandlebarLabel"
+                        style="@style/Widget.App.CardTitle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Lenkerbreite (cm)"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp" />
+                        android:text="@string/main_handlebar_label" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleHandlebar"
                         style="@style/Widget.App.ToggleButtonDezent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Einblenden"
+                        android:text="@string/main_toggle_show_handlebar"
                         app:icon="@drawable/ic_expand_more"
                         app:iconPadding="4dp"
                         app:iconGravity="textEnd" />
@@ -133,15 +132,15 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="Lenkerbreite (cm)">
+                        android:hint="@string/main_handlebar_hint">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etHandlebarWidth"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="z.B. 68"
+                            android:hint="@string/main_handlebar_placeholder"
                             android:inputType="number"
-                            android:text="60"
+                            android:text="@string/main_handlebar_default"
                             android:textSize="18sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -177,20 +176,18 @@
 
                     <TextView
                         android:id="@+id/tvSensorTitle"
+                        style="@style/Widget.App.CardTitle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Sensorwerte"
-                        android:textColor="@color/text_primary"
-                        android:textSize="16sp"
-                        android:textStyle="normal" />
+                        android:text="@string/main_sensor_title" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnToggleSensor"
                         style="@style/Widget.App.ToggleButtonDezent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Einblenden"
+                        android:text="@string/main_toggle_show_sensor"
                         app:icon="@drawable/ic_expand_more"
                         app:iconPadding="4dp"
                         app:iconGravity="textEnd" />
@@ -211,33 +208,31 @@
 
                         <TextView
                             android:id="@+id/tvLeftDistance"
+                            style="@style/Widget.App.CardSubtitle"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Links: -"
-                            android:textColor="@color/text_secondary" />
+                            android:text="@string/main_sensor_left" />
 
                         <TextView
                             android:id="@+id/tvRightDistance"
+                            style="@style/Widget.App.CardSubtitle"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:gravity="end"
-                            android:text="Rechts: -"
-                            android:textColor="@color/text_secondary" />
+                            android:text="@string/main_sensor_right" />
                     </LinearLayout>
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvOvertakeDistance"
+                    style="@style/Widget.App.HighlightValue"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center_horizontal"
-                    android:text="Überholabstand: -"
-                    android:textColor="@color/text_primary"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:text="@string/main_overtake_distance_placeholder" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -268,12 +263,12 @@
 
                     <TextView
                         android:id="@+id/tvGpsStatus"
+                        style="@style/Widget.App.CardSubtitle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:layout_weight="1"
-                        android:text="GPS: keine Daten"
-                        android:textColor="@color/text_secondary"
+                        android:text="@string/main_gps_status_no_fix"
                         android:textSize="13sp" />
 
                     <com.google.android.material.button.MaterialButton
@@ -281,7 +276,7 @@
                         style="@style/Widget.App.ToggleButtonDezent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Karte anzeigen"
+                        android:text="@string/main_map_show"
                         app:icon="@drawable/ic_map"
                         app:iconPadding="4dp"
                         app:iconGravity="textStart" />
@@ -305,7 +300,7 @@
             android:layout_marginBottom="8dp"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
-            android:text="Aufgezeichnete Fahrten"
+            android:text="@string/main_open_data"
             app:icon="@drawable/ic_recorded_tracks"
             app:iconPadding="6dp"
             app:iconGravity="textStart" />
@@ -319,7 +314,7 @@
             android:layout_marginBottom="8dp"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
-            android:text="App beenden"
+            android:text="@string/main_exit"
             app:icon="@drawable/ic_logout"
             app:iconPadding="6dp"
             app:iconGravity="textStart" />

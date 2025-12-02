@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        android:text="Portal Upload"
+        android:text="@string/data_title_upload"
         android:textColor="@color/text_primary"
         android:textSize="22sp"
         android:textStyle="bold" />
@@ -23,14 +23,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Portal URL"
+        android:text="@string/data_label_portal_url"
         android:textColor="@color/text_primary" />
 
     <EditText
         android:id="@+id/etObsUrl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="z.B. https://mein-server"
+        android:hint="@string/data_hint_portal_url"
         android:inputType="textUri" />
 
     <!-- API-Key -->
@@ -38,14 +38,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="API-Key"
+        android:text="@string/data_label_api_key"
         android:textColor="@color/text_primary" />
 
     <EditText
         android:id="@+id/etApiKey"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="API-Key eingeben"
+        android:hint="@string/data_hint_api_key"
         android:inputType="textPassword" />
 
     <!-- Dateiauswahl: Spinner -->
@@ -53,7 +53,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="BIN-Datei auswählen"
+        android:text="@string/data_label_bin_select"
         android:textColor="@color/text_primary" />
 
     <Spinner
@@ -68,7 +68,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Datei hochladen"
+        android:text="@string/data_button_upload"
         app:icon="@drawable/ic_upload"
         app:iconPadding="6dp"
         app:iconGravity="textStart"
@@ -80,7 +80,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Status: noch kein Upload"
+        android:text="@string/data_status_no_upload_yet"
         android:textColor="@color/text_secondary" />
 
     <!-- Trenner -->
@@ -95,7 +95,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Letzte BIN prüfen"
+        android:text="@string/data_section_bin_check_title"
         android:textColor="@color/text_primary"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -106,7 +106,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Letzte BIN prüfen"
+        android:text="@string/data_button_bin_check"
         app:icon="@drawable/ic_bin_debug"
         app:iconPadding="6dp"
         app:iconGravity="textStart"
@@ -135,7 +135,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        android:text="Aufgezeichnete Fahrten"
+        android:text="@string/data_section_files_title"
         android:textColor="@color/text_primary"
         android:textSize="22sp"
         android:textStyle="bold" />
@@ -145,7 +145,7 @@
         style="@style/Widget.App.ComicButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Alle Fahrten löschen"
+        android:text="@string/data_button_delete_all"
         app:icon="@drawable/ic_delete_all"
         app:iconPadding="6dp"
         app:iconGravity="textStart"

@@ -65,6 +65,9 @@ class DataActivity : AppCompatActivity() {
         btnDebugBin = findViewById(R.id.btnDebugBin)
         tvBinStatus = findViewById(R.id.tvBinStatus)
 
+        // Initialstatus
+        tvUploadStatus.text = getString(R.string.data_status_no_upload_yet)
+
         // URL / API-Key laden
         loadUrlAndApiKeyFromPrefs()
 
@@ -95,7 +98,7 @@ class DataActivity : AppCompatActivity() {
 
         // BIN-Check
         btnDebugBin.setOnClickListener {
-            tvBinStatus.text = "BIN-Check läuft..."
+            tvBinStatus.text = getString(R.string.data_bin_check_running)
             debugValidateLastBin()
         }
     }
@@ -105,7 +108,7 @@ class DataActivity : AppCompatActivity() {
         saveUrlAndApiKeyToPrefs()
     }
 
-    // --- URL / API-Key (wie in UploadActivity) ---
+    // --- URL / API-Key ---
     private fun loadUrlAndApiKeyFromPrefs() {
         val prefs: SharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val savedUrl = prefs.getString(PREF_KEY_URL, "") ?: ""
@@ -131,8 +134,15 @@ class DataActivity : AppCompatActivity() {
         val dir = File(getExternalFilesDir(null), "obslite")
 
         if (!dir.exists()) {
-            tvUploadStatus.text = "Status: Ordner nicht gefunden: ${dir.absolutePath}"
-            Toast.makeText(this, "Ordner 'obslite' existiert nicht.", Toast.LENGTH_SHORT).show()
+            tvUploadStatus.text = getString(
+                R.string.data_status_dir_not_found,
+                dir.absolutePath
+            )
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_dir_not_found),
+                Toast.LENGTH_SHORT
+            ).show()
             binFiles = emptyArray()
             btnUpload.isEnabled = false
             return
@@ -140,8 +150,12 @@ class DataActivity : AppCompatActivity() {
 
         val files = dir.listFiles { _, name -> name.endsWith(".bin") }
         if (files == null || files.isEmpty()) {
-            tvUploadStatus.text = "Status: keine .bin-Dateien gefunden."
-            Toast.makeText(this, "Keine .bin-Dateien gefunden.", Toast.LENGTH_SHORT).show()
+            tvUploadStatus.text = getString(R.string.data_status_no_bin_files)
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_no_bin_files),
+                Toast.LENGTH_SHORT
+            ).show()
             binFiles = emptyArray()
             btnUpload.isEnabled = false
             return
@@ -163,7 +177,7 @@ class DataActivity : AppCompatActivity() {
         spFileName.adapter = adapter
 
         btnUpload.isEnabled = true
-        tvUploadStatus.text = "Status: ${binFiles.size} BIN-Datei(en) gefunden."
+        tvUploadStatus.text = getString(R.string.data_status_no_upload_yet)
     }
 
     private fun startUpload() {
@@ -171,26 +185,44 @@ class DataActivity : AppCompatActivity() {
         val apiKey = etApiKey.text.toString().trim()
 
         if (TextUtils.isEmpty(url) || TextUtils.isEmpty(apiKey)) {
-            Toast.makeText(this, "Bitte URL und API-Key ausfüllen.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_fill_url_api),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
         if (binFiles.isEmpty()) {
-            Toast.makeText(this, "Keine BIN-Dateien zum Hochladen vorhanden.", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_no_bin_for_upload),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
         val selectedPosition = spFileName.selectedItemPosition
         if (selectedPosition < 0 || selectedPosition >= binFiles.size) {
-            Toast.makeText(this, "Bitte eine BIN-Datei auswählen.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_select_bin_file),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
         val binFile = binFiles[selectedPosition]
         if (!binFile.exists()) {
-            tvUploadStatus.text = "Status: Datei existiert nicht mehr: ${binFile.absolutePath}"
-            Toast.makeText(this, "Datei existiert nicht mehr.", Toast.LENGTH_SHORT).show()
+            tvUploadStatus.text = getString(
+                R.string.data_status_file_missing,
+                binFile.absolutePath
+            )
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_file_missing),
+                Toast.LENGTH_SHORT
+            ).show()
             loadBinFilesIntoSpinner()
             refreshFileList()
             return
@@ -199,38 +231,59 @@ class DataActivity : AppCompatActivity() {
         // Vor dem Upload speichern
         saveUrlAndApiKeyToPrefs()
 
-        tvUploadStatus.text = "Status: Upload läuft…\nDatei: ${binFile.name}"
+        tvUploadStatus.text = getString(
+            R.string.data_status_upload_running,
+            binFile.name
+        )
 
         Thread {
             try {
                 val result = obsUploader.uploadTrack(binFile, url, apiKey)
                 runOnUiThread {
                     if (result.isSuccessful) {
-                        tvUploadStatus.text =
-                            "Status: Upload erfolgreich (${result.statusCode})\n" +
-                                    "Datei: ${binFile.name}\n" +
-                                    result.responseBody
-                        Toast.makeText(this, "Upload erfolgreich", Toast.LENGTH_SHORT).show()
+                        tvUploadStatus.text = getString(
+                            R.string.data_status_upload_success,
+                            result.statusCode,
+                            binFile.name,
+                            result.responseBody
+                        )
+                        Toast.makeText(
+                            this,
+                            getString(R.string.data_toast_upload_success),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     } else {
-                        tvUploadStatus.text =
-                            "Status: Fehler (${result.statusCode})\n" +
-                                    "Datei: ${binFile.name}\n" +
-                                    result.responseBody
-                        Toast.makeText(this, "Upload fehlgeschlagen", Toast.LENGTH_SHORT).show()
+                        tvUploadStatus.text = getString(
+                            R.string.data_status_upload_error,
+                            result.statusCode,
+                            binFile.name,
+                            result.responseBody
+                        )
+                        Toast.makeText(
+                            this,
+                            getString(R.string.data_toast_upload_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
-                    tvUploadStatus.text = "Status: Ausnahmefehler: ${e.message}"
-                    Toast.makeText(this, "Fehler beim Upload: ${e.message}", Toast.LENGTH_LONG)
-                        .show()
+                    tvUploadStatus.text = getString(
+                        R.string.data_status_upload_exception,
+                        e.message ?: "unbekannter Fehler"
+                    )
+                    Toast.makeText(
+                        this,
+                        getString(R.string.data_toast_upload_exception, e.message),
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }.start()
     }
 
-    // --- Fahrtenliste (aus RecordedFilesActivity) ---
+    // --- Fahrtenliste ---
     private fun refreshFileList() {
         val dir = File(getExternalFilesDir(null), "obslite")
         if (!dir.exists()) {
@@ -238,7 +291,11 @@ class DataActivity : AppCompatActivity() {
             if (::filesAdapter.isInitialized) {
                 filesAdapter.clear()
             }
-            Toast.makeText(this, "Keine Fahrten gefunden", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_no_recordings_found),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -253,37 +310,58 @@ class DataActivity : AppCompatActivity() {
         filesAdapter.notifyDataSetChanged()
 
         if (files.isEmpty()) {
-            Toast.makeText(this, "Keine Fahrten vorhanden", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_no_recordings),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
     private fun showDeleteSingleDialog(file: File) {
         AlertDialog.Builder(this)
-            .setTitle("Fahrt löschen?")
-            .setMessage("Möchtest du die Fahrt \"${file.name}\" wirklich löschen?")
-            .setPositiveButton("Löschen") { _, _ ->
+            .setTitle(getString(R.string.data_dialog_delete_single_title))
+            .setMessage(
+                getString(
+                    R.string.data_dialog_delete_single_message,
+                    file.name
+                )
+            )
+            .setPositiveButton(getString(R.string.data_dialog_button_delete)) { _, _ ->
                 if (file.delete()) {
-                    Toast.makeText(this, "Fahrt gelöscht", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        getString(R.string.data_toast_single_deleted),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 } else {
-                    Toast.makeText(this, "Löschen fehlgeschlagen", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        getString(R.string.data_toast_single_delete_failed),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
                 loadBinFilesIntoSpinner()
                 refreshFileList()
             }
-            .setNegativeButton("Abbrechen", null)
+            .setNegativeButton(getString(R.string.data_dialog_button_cancel), null)
             .show()
     }
 
     private fun showDeleteAllDialog() {
         if (files.isEmpty()) {
-            Toast.makeText(this, "Keine Fahrten zum Löschen", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.data_toast_no_recordings_to_delete),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Alle Fahrten löschen?")
-            .setMessage("Möchtest du wirklich alle aufgezeichneten Fahrten löschen? Diese Aktion kann nicht rückgängig gemacht werden.")
-            .setPositiveButton("Alle löschen") { _, _ ->
+            .setTitle(getString(R.string.data_dialog_delete_all_title))
+            .setMessage(getString(R.string.data_dialog_delete_all_message))
+            .setPositiveButton(getString(R.string.data_dialog_button_delete_all)) { _, _ ->
                 var successCount = 0
                 var failCount = 0
 
@@ -299,24 +377,30 @@ class DataActivity : AppCompatActivity() {
                 refreshFileList()
 
                 val msg = when {
-                    failCount == 0 -> "Alle Fahrten gelöscht"
-                    successCount == 0 -> "Keine Fahrt konnte gelöscht werden"
-                    else -> "$successCount Fahrten gelöscht, $failCount fehlgeschlagen"
+                    failCount == 0 -> getString(R.string.data_toast_all_deleted)
+                    successCount == 0 -> getString(R.string.data_toast_none_deleted)
+                    else -> getString(
+                        R.string.data_toast_some_deleted,
+                        successCount,
+                        failCount
+                    )
                 }
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Abbrechen", null)
+            .setNegativeButton(getString(R.string.data_dialog_button_cancel), null)
             .show()
     }
 
-    // --- BIN-Check (aus MainActivity) ---
+    // --- BIN-Check ---
     private fun debugValidateLastBin() {
         val dir = File(getExternalFilesDir(null), "obslite")
         val files = dir.listFiles { f -> f.isFile && f.name.endsWith(".bin") }
             ?.sortedBy { it.lastModified() } ?: emptyList()
         if (files.isEmpty()) {
             android.util.Log.e("BIN_DEBUG", "Keine .bin-Datei gefunden")
-            runOnUiThread { tvBinStatus.text = "BIN-Check: keine .bin-Datei gefunden" }
+            runOnUiThread {
+                tvBinStatus.text = getString(R.string.data_bin_check_none_found)
+            }
             return
         }
 
@@ -330,14 +414,20 @@ class DataActivity : AppCompatActivity() {
             for (i in 0 until previewLen) append(String.format("%02X ", bytes[i]))
         }
         android.util.Log.d("BIN_DEBUG", "Hex-Vorschau (max 64 B): $hexPreview")
-        runOnUiThread { tvBinStatus.text = "BIN-Check: ${file.name} (${bytes.size} B)" }
+        runOnUiThread {
+            tvBinStatus.text = getString(
+                R.string.data_bin_check_file_info,
+                file.name,
+                bytes.size
+            )
+        }
 
         val chunks: List<ByteArray> = bytes.splitOnByte(0x00.toByte())
         android.util.Log.d("BIN_DEBUG", "Anzahl Chunks (inkl. evtl. leerer): ${chunks.size}")
 
-        var idx = 0;
-        var okCount = 0;
-        var errorCount = 0;
+        var idx = 0
+        var okCount = 0
+        var errorCount = 0
         var nonEmptyChunks = 0
         for (chunk in chunks) {
             if (chunk.isEmpty()) {
@@ -348,7 +438,7 @@ class DataActivity : AppCompatActivity() {
             nonEmptyChunks++
             try {
                 val chunkList =
-                    java.util.LinkedList<Byte>(); chunk.forEach { b -> chunkList.add(b) }
+                    java.util.LinkedList<Byte>().apply { chunk.forEach { b -> add(b) } }
                 val decoded: ByteArray =
                     com.example.obsliterecorder.util.CobsUtils.decode(chunkList)
                 val event = com.example.obsliterecorder.proto.Event.parseFrom(decoded)
@@ -372,8 +462,13 @@ class DataActivity : AppCompatActivity() {
             "Auswertung: nonEmptyChunks=$nonEmptyChunks, ok=$okCount, errors=$errorCount"
         )
         runOnUiThread {
-            tvBinStatus.text =
-                "BIN-Check fertig: ${bytes.size} B, Chunks=$nonEmptyChunks, OK=$okCount, Fehler=$errorCount (Logcat: BIN_DEBUG)"
+            tvBinStatus.text = getString(
+                R.string.data_bin_check_result,
+                bytes.size,
+                nonEmptyChunks,
+                okCount,
+                errorCount
+            )
         }
     }
 

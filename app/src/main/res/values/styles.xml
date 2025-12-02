@@ -32,4 +32,25 @@
 
     <!-- Hintergrund der dezenten Toggle-Buttons: HELLBLAU -->
     <color name="toggle_button_bg">@color/btn_primary_light</color>
+
+
+    <!-- Einheitliche Typografie für Karten / Überschriften -->
+<style name="Widget.App.CardTitle" parent="TextAppearance.MaterialComponents.Body1">
+<item name="android:textColor">@color/text_primary</item>
+<item name="android:textSize">18sp</item>
+<item name="android:textStyle">bold</item>
+</style>
+
+<style name="Widget.App.CardSubtitle" parent="TextAppearance.MaterialComponents.Body2">
+<item name="android:textColor">@color/text_secondary</item>
+<item name="android:textSize">14sp</item>
+</style>
+
+    <!-- Hervorgehobene, große Zahlen / Werte -->
+<style name="Widget.App.HighlightValue" parent="TextAppearance.MaterialComponents.Body1">
+<item name="android:textColor">@color/text_primary</item>
+<item name="android:textSize">22sp</item>
+<item name="android:textStyle">bold</item>
+</style>
+
 </resources>

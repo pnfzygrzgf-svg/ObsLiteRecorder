@@ -121,10 +121,10 @@ class MainActivity : AppCompatActivity() {
                 try {
                     // USB-Status + Button + Icon
                     if (obsService!!.isUsbConnected()) {
-                        tvUsbStatus.text = "USB: verbunden"
+                        tvUsbStatus.text = getString(R.string.main_usb_status_connected)
                         tvUsbStatus.setTextColor(Color.parseColor("#4CAF50")) // grün
 
-                        btnUsb.text = "OBS Lite trennen"
+                        btnUsb.text = getString(R.string.main_usb_button_disconnect)
                         btnUsb.backgroundTintList =
                             ColorStateList.valueOf(Color.parseColor("#4CAF50"))
                         btnUsb.icon = ContextCompat.getDrawable(
@@ -132,10 +132,10 @@ class MainActivity : AppCompatActivity() {
                             R.drawable.ic_link_disconnect
                         )
                     } else {
-                        tvUsbStatus.text = "USB: nicht verbunden"
+                        tvUsbStatus.text = getString(R.string.main_usb_status_disconnected)
                         tvUsbStatus.setTextColor(Color.GRAY)
 
-                        btnUsb.text = "OBS Lite verbinden"
+                        btnUsb.text = getString(R.string.main_usb_button_connect)
                         btnUsb.backgroundTintList = usbOriginalTint
                         btnUsb.icon = ContextCompat.getDrawable(
                             this@MainActivity,
@@ -357,13 +357,13 @@ class MainActivity : AppCompatActivity() {
     // --- Aufnahme-UI ---
     private fun updateRecordingUi() {
         if (isRecording) {
-            btnRecord.text = "Aufnahme stoppen"
+            btnRecord.text = getString(R.string.main_record_stop)
             btnRecord.backgroundTintList =
                 ColorStateList.valueOf(Color.parseColor("#F44336")) // rot
 
             btnRecord.icon = ContextCompat.getDrawable(this, R.drawable.ic_stop)
         } else {
-            btnRecord.text = "Aufnahme starten"
+            btnRecord.text = getString(R.string.main_record_start)
             btnRecord.backgroundTintList = recordOriginalTint
 
             btnRecord.icon = ContextCompat.getDrawable(this, R.drawable.ic_record)
@@ -373,11 +373,11 @@ class MainActivity : AppCompatActivity() {
     // --- Lenker-Toggle-UI ---
     private fun updateHandlebarToggleUi() {
         if (isHandlebarVisible) {
-            btnToggleHandlebar.text = "Ausblenden"
+            btnToggleHandlebar.text = getString(R.string.main_toggle_hide_handlebar)
             btnToggleHandlebar.icon =
                 ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
         } else {
-            btnToggleHandlebar.text = "Einblenden"
+            btnToggleHandlebar.text = getString(R.string.main_toggle_show_handlebar)
             btnToggleHandlebar.icon =
                 ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
         }
@@ -386,11 +386,11 @@ class MainActivity : AppCompatActivity() {
     // --- Sensor-Toggle-UI ---
     private fun updateSensorToggleUi() {
         if (isSensorVisible) {
-            btnToggleSensor.text = "Werte ausblenden"
+            btnToggleSensor.text = getString(R.string.main_toggle_hide_sensor)
             btnToggleSensor.icon =
                 ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
         } else {
-            btnToggleSensor.text = "Werte einblenden"
+            btnToggleSensor.text = getString(R.string.main_toggle_show_sensor)
             btnToggleSensor.icon =
                 ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
         }
@@ -399,13 +399,13 @@ class MainActivity : AppCompatActivity() {
     // --- Map-Toggle-UI ---
     private fun updateMapToggleUi() {
         if (isMapVisible) {
-            btnToggleMap.text = "Karte ausblenden"
+            btnToggleMap.text = getString(R.string.main_map_hide)
             btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
             btnToggleMap.backgroundTintList = ColorStateList.valueOf(
                 ContextCompat.getColor(this, R.color.accent)
             )
         } else {
-            btnToggleMap.text = "Karte anzeigen"
+            btnToggleMap.text = getString(R.string.main_map_show)
             btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
             btnToggleMap.backgroundTintList = mapOriginalTint
         }
@@ -416,17 +416,18 @@ class MainActivity : AppCompatActivity() {
     private fun updateMapAndGpsStatus(lat: Double, lon: Double, accuracy: Float) {
         // GPS-Status
         val acc = accuracy.toInt()
-        val statusText = when {
-            acc <= 10 -> "GPS: gut (±${acc} m)"
-            acc <= 30 -> "GPS: ok (±${acc} m)"
-            else -> "GPS: schwach (±${acc} m)"
+        val statusRes = when {
+            acc <= 10 -> R.string.main_gps_status_good
+            acc <= 30 -> R.string.main_gps_status_ok
+            else -> R.string.main_gps_status_weak
         }
+        tvGpsStatus.text = getString(statusRes, acc)
+
         val color = when {
             acc <= 10 -> Color.parseColor("#4CAF50")
             acc <= 30 -> Color.parseColor("#FFC107")
             else -> Color.parseColor("#F44336")
         }
-        tvGpsStatus.text = statusText
         tvGpsStatus.setTextColor(color)
 
         // Map nur aktualisieren, wenn sichtbar
@@ -456,7 +457,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateGpsStatusNoFix() {
-        tvGpsStatus.text = "GPS: keine Daten"
+        tvGpsStatus.text = getString(R.string.main_gps_status_no_fix)
         tvGpsStatus.setTextColor(Color.GRAY)
     }
 
