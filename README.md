@@ -15,10 +15,15 @@ Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 
 # Screenshots
 
-<img width="240" height="533" alt="Screenshot_20251201-142626" src="https://github.com/user-attachments/assets/8c40bb27-9920-4da1-afe5-f137510bc044" />
-<img width="240" height="533" alt="Screenshot_20251201-142703" src="https://github.com/user-attachments/assets/56d52ad2-a2cd-4071-91c0-8b69917128d0" />
-<img width="240" height="533" alt="Screenshot_20251201-142806" src="https://github.com/user-attachments/assets/8eea369b-ef5b-424a-afa2-01da70a1fa7a" />
-<img width="240" height="533" alt="Screenshot_20251201-142821" src="https://github.com/user-attachments/assets/d1b32884-b8bd-4872-9125-6e4ab38f3e36" />
+<img width="240" height="533" alt="Screenshot_20251204-203744" src="https://github.com/user-attachments/assets/f9479291-7863-4ad3-9650-df779289336b" />
+
+<img width="240" height="533" alt="Screenshot_20251204-203806" src="https://github.com/user-attachments/assets/83b432a3-4cd5-49d6-b6ea-6ba48b5ccd5e" />
+
+<img width="240" height="533" alt="Screenshot_20251204-203816" src="https://github.com/user-attachments/assets/4ead735a-3e85-4a31-b32a-7c654447c6d5" />
+<img width="240" height="533" alt="Screenshot_20251204-203830" src="https://github.com/user-attachments/assets/4b5a7399-8dd8-4f85-85f0-4b971cd9d86b" />
+
+
+
 
 
 
