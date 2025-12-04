@@ -121,6 +121,17 @@
         android:textColor="@color/text_secondary"
         android:textSize="13sp" />
 
+    <!-- NEU: Fortschrittsbalken für BIN-Prüfung -->
+    <ProgressBar
+        android:id="@+id/progressBin"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:max="100"
+        android:progress="0"
+        android:visibility="gone" />
+
     <!-- Trenner -->
     <View
         android:layout_width="match_parent"

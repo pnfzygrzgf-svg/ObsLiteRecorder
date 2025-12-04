@@ -4,10 +4,12 @@ import android.app.AlertDialog
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.TextUtils
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
+import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -36,6 +38,7 @@ class DataActivity : AppCompatActivity() {
     // BIN-Check-UI
     private lateinit var btnDebugBin: Button
     private lateinit var tvBinStatus: TextView
+    private lateinit var progressBin: ProgressBar
 
     private val obsUploader = ObsUploader()
 
@@ -64,6 +67,7 @@ class DataActivity : AppCompatActivity() {
         // BIN-Check-Views
         btnDebugBin = findViewById(R.id.btnDebugBin)
         tvBinStatus = findViewById(R.id.tvBinStatus)
+        progressBin = findViewById(R.id.progressBin)
 
         // Initialstatus
         tvUploadStatus.text = getString(R.string.data_status_no_upload_yet)
@@ -99,7 +103,23 @@ class DataActivity : AppCompatActivity() {
         // BIN-Check
         btnDebugBin.setOnClickListener {
             tvBinStatus.text = getString(R.string.data_bin_check_running)
-            debugValidateLastBin()
+
+            // ProgressBar vorbereiten
+            progressBin.visibility = View.VISIBLE
+            progressBin.progress = 0
+
+            // Button deaktivieren, damit man nicht mehrfach klickt
+            btnDebugBin.isEnabled = false
+
+            // BIN-Check im Hintergrund ausführen
+            Thread {
+                debugValidateLastBin()
+                // Am Ende wieder UI zurücksetzen
+                runOnUiThread {
+                    progressBin.visibility = View.GONE
+                    btnDebugBin.isEnabled = true
+                }
+            }.start()
         }
     }
 
@@ -145,6 +165,9 @@ class DataActivity : AppCompatActivity() {
             ).show()
             binFiles = emptyArray()
             btnUpload.isEnabled = false
+
+            // Spinner leeren
+            spFileName.adapter = null
             return
         }
 
@@ -158,6 +181,9 @@ class DataActivity : AppCompatActivity() {
             ).show()
             binFiles = emptyArray()
             btnUpload.isEnabled = false
+
+            // Spinner leeren
+            spFileName.adapter = null
             return
         }
 
@@ -400,6 +426,7 @@ class DataActivity : AppCompatActivity() {
             android.util.Log.e("BIN_DEBUG", "Keine .bin-Datei gefunden")
             runOnUiThread {
                 tvBinStatus.text = getString(R.string.data_bin_check_none_found)
+                progressBin.progress = 0
             }
             return
         }
@@ -429,10 +456,18 @@ class DataActivity : AppCompatActivity() {
         var okCount = 0
         var errorCount = 0
         var nonEmptyChunks = 0
+
+        val totalChunks = chunks.size.coerceAtLeast(1)
+
         for (chunk in chunks) {
             if (chunk.isEmpty()) {
                 android.util.Log.d("BIN_DEBUG", "#$idx leerer Chunk")
                 idx++
+
+                val progress = (idx * 100) / totalChunks
+                runOnUiThread {
+                    progressBin.progress = progress
+                }
                 continue
             }
             nonEmptyChunks++
@@ -455,8 +490,15 @@ class DataActivity : AppCompatActivity() {
                 )
                 errorCount++
             }
+
             idx++
+
+            val progress = (idx * 100) / totalChunks
+            runOnUiThread {
+                progressBin.progress = progress
+            }
         }
+
         android.util.Log.d(
             "BIN_DEBUG",
             "Auswertung: nonEmptyChunks=$nonEmptyChunks, ok=$okCount, errors=$errorCount"
@@ -469,6 +511,7 @@ class DataActivity : AppCompatActivity() {
                 okCount,
                 errorCount
             )
+            progressBin.progress = 100
         }
     }
 
