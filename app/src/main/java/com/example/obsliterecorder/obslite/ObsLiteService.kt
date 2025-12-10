@@ -181,15 +181,14 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
      * Hier starten wir die Foreground-Notification.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
-            TAG,
-            "onStartCommand() id=$startId intent=$intent"
-        )
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "onStartCommand() id=$startId intent=$intent flags=$flags")
+        }
         if (!isForeground) {
             startInForeground()
         }
-        // START_STICKY: falls der Prozess gekillt wird, versucht Android, den Service neu zu starten
-        return START_STICKY
+        // WICHTIG: nicht automatisch neu starten, wenn der Prozess gekillt wird
+        return START_NOT_STICKY
     }
 
     private fun createNotificationChannel() {
@@ -219,7 +218,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("OBS Lite Recorder")
             .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher) // falls du ein eigenes Icon hast: R.drawable.ic_notification
+            .setSmallIcon(R.mipmap.ic_launcher) // ggf. eigenes Icon
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .build()
@@ -360,16 +359,42 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             } finally {
                 isRecording = false
                 updateForegroundNotification()
-                if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
-                    TAG,
-                    "stopRecording(): isRecording=$isRecording"
-                )
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "stopRecording(): isRecording=$isRecording")
+                }
             }
         }
     }
 
     /**
-     * USB-Daten vom OBS Lite; wird jetzt direkt vom Serial-Callback (im Service) aufgerufen.
+     * Wird aufgerufen, wenn der Nutzer die App im „Recents / Quadrat“-Screen wegwischt.
+     * → hier stoppen wir Aufnahme & Service sicher.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.w(TAG, "onTaskRemoved(): app task removed, stopping recording & service")
+
+        // Aufnahme stoppen (falls aktiv)
+        stopRecording()
+
+        // GPS/USB aufräumen
+        stopLocationUpdatesInternal()
+        if (obsLiteConnected) {
+            disconnectUsb()
+        }
+
+        // Foreground-Notification entfernen und Service beenden
+        if (isForeground) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            isForeground = false
+        }
+
+        stopSelf()
+
+        super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * USB-Daten vom OBS Lite; wird direkt vom Serial-Callback (im Service) aufgerufen.
      * Wir verschieben sofort auf den IO-Thread.
      */
     fun onUsbData(data: ByteArray) {
@@ -462,7 +487,6 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
 
     /**
      * Wird bei jedem neuen GPS-Fix aufgerufen.
-     * Wichtig: Kein zusätzliches GPS-Event schreiben, um Duplikate zu vermeiden.
      * Die Session erzeugt Geolocation-Events beim Positionswechsel in handleEvent().
      */
     private fun onLocationChangedInternal(location: Location) {
@@ -666,13 +690,13 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         Log.w(TAG, "onDestroy(): service destroyed, isRecording=$isRecording")
 
         // USB Receiver und Preview-Thread aufräumen
         runCatching { unregisterReceiver(usbReceiver) }
         previewThread.quitSafely()
 
+        // Falls noch Aufnahme läuft, Session sauber beenden
         ioHandler.post {
             try {
                 if (isRecording) {
@@ -681,6 +705,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             } catch (e: Exception) {
                 Log.e(TAG, "onDestroy(): error closing file", e)
             } finally {
+                isRecording = false
                 ioThread.quitSafely()
             }
         }
@@ -696,5 +721,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             stopForeground(STOP_FOREGROUND_REMOVE)
             isForeground = false
         }
+
+        super.onDestroy()
     }
 }

@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -100,7 +101,6 @@ class MainActivity : AppCompatActivity() {
 
     private var recordOriginalTint: ColorStateList? = null
     private var usbOriginalTint: ColorStateList? = null
-    // mapOriginalTint wurde entfernt
 
     // Lokaler UI-Status (Service hält den echten Aufnahme-Status)
     private var isRecording: Boolean = false
@@ -224,7 +224,6 @@ class MainActivity : AppCompatActivity() {
         // Original-Tints merken (nur Record & USB)
         recordOriginalTint = btnRecord.backgroundTintList
         usbOriginalTint = btnUsb.backgroundTintList
-        // mapOriginalTint entfällt – Style steuert die Farbe
 
         // Karte initial ausblenden
         isMapVisible = false
@@ -401,11 +400,9 @@ class MainActivity : AppCompatActivity() {
         if (isMapVisible) {
             btnToggleMap.text = "Karte ausblenden"
             btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
-            // keine Hintergrundfarbe ändern – Style bleibt immer gleich
         } else {
             btnToggleMap.text = "Karte anzeigen"
             btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
-            // ebenfalls kein backgroundTintList hier
         }
     }
 
@@ -460,6 +457,7 @@ class MainActivity : AppCompatActivity() {
 
     // --- Lenkerbreite persistieren ---
     private fun loadHandlebarWidthCm(): Int = prefs.getInt(PREF_KEY_HANDLEBAR_WIDTH_CM, 60)
+
     private fun saveHandlebarWidthCm(widthCm: Int) {
         prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
     }
@@ -495,21 +493,34 @@ class MainActivity : AppCompatActivity() {
 
     // --- App komplett beenden ---
     private fun exitApp() {
-        // Aufnahme stoppen, falls aktiv
+        // 1) Aufnahme stoppen, falls aktiv
         if (isRecording) {
             obsService?.stopRecording()
             isRecording = false
             updateRecordingUi()
         }
 
-        // USB-Verbindung über Service trennen
+        // 2) USB-Verbindung über Service trennen
         obsService?.disconnectUsbFromUi()
 
-        // Foreground-Service stoppen
+        // 3) Foreground-Service stoppen
         stopService(Intent(this, ObsLiteService::class.java))
 
-        // Alle Activities schließen -> App aus Taskliste
-        finishAffinity()
+        // 4) Service-Binding lösen
+        if (bound) {
+            try {
+                unbindService(connection)
+            } catch (_: Exception) {
+            }
+            bound = false
+        }
+
+        // 5) Activity/Task schließen und aus „Letzte Apps“ entfernen
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAndRemoveTask()
+        } else {
+            finishAffinity()
+        }
     }
 
     companion object {

@@ -168,11 +168,21 @@ class OBSLiteSession(private val context: Context) {
                     )
                 }
 
-                // (1) Rohwert-Event (nur Smartphone-Zeit)
+                // --- Korrektur um halbe Lenkerbreite (Werte in cm) ---
+                val distanceCm = (rawMeters * 100.0).roundToInt()
+                val handlebarCmHalf = getHandlebarWidthCm() / 2.0
+                val correctedCm = max(0, (distanceCm - handlebarCmHalf).roundToInt())
+                val correctedMeters = correctedCm / 100.0f
+
+                val correctedDm = rawDm.toBuilder()
+                    .setDistance(correctedMeters)
+                    .build()
+
+                // (1) KORRIGIERTES DistanceMeasurement-Event (nur Smartphone-Zeit)
                 val dmEvent = Event.newBuilder()
                     .clearTime()
                     .addTime(smartphoneTime)
-                    .setDistanceMeasurement(rawDm)
+                    .setDistanceMeasurement(correctedDm)
                     .build()
 
                 val encDm = encodeEvent(dmEvent)
@@ -183,15 +193,12 @@ class OBSLiteSession(private val context: Context) {
                 if (Log.isLoggable(TAG, Log.DEBUG)) {
                     Log.d(
                         TAG,
-                        "handleEvent(): DM saved, encodedBytes=${encDm.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                        "handleEvent(): DM saved (corr=${correctedMeters}m), encodedBytes=${encDm.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                     )
                 }
 
-                // (2) Median füttern (nur left sensor sourceId==1), metrische Korrektur runden
+                // (2) Median füttern (nur left sensor sourceId==1) mit korrigierten cm
                 if (rawDm.sourceId == 1) {
-                    val handlebarCmHalf = getHandlebarWidthCm() / 2.0
-                    val distanceCm = (rawMeters * 100.0).roundToInt()
-                    val correctedCm = max(0, (distanceCm - handlebarCmHalf).roundToInt())
                     movingMedian.newValue(correctedCm)
                 }
 
@@ -508,3 +515,4 @@ class OBSLiteSession(private val context: Context) {
         }
     }
 }
+v
