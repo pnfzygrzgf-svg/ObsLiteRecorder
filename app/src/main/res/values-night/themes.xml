@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Basis-App-Theme im Dark Mode -->
+    <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Fenster-Hintergrund im Dark Mode -->
+        <item name="android:windowBackground">@color/black</item>
+
+        <!-- Material-Oberflächen -->
+        <item name="colorSurface">@color/black</item>
+
+        <!-- Textfarben (kommen aus values-night/colors.xml) -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
+        <!-- Schriftart -->
+        <item name="android:fontFamily">@font/open_sans_condensed</item>
+        <item name="fontFamily">@font/open_sans_condensed</item>
+
+        <!-- Statusleiste: dunkel + helle Icons -->
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Navigationsleiste: dunkel + helle Icons -->
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <!-- Normales App-Theme im Dark Mode -->
+    <style name="Theme.ObsLiteRecorder" parent="Base.Theme.ObsLiteRecorder" />
+
+    <!-- Launcher-/Splash-Theme (dunkel) -->
+    <style name="Theme.ObsLiteRecorder.Launcher" parent="Theme.SplashScreen">
+
+        <!-- Vollbild-Hintergrund: schwarz -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+
+        <!-- Weißes Logo (drawable-night/obs_splash_logo.xml) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/obs_splash_logo</item>
+
+        <!-- KEIN Icon-Hintergrund-Kreis -->
+
+        <!-- Nach dem Splashscreen auf das App-Theme wechseln -->
+        <item name="postSplashScreenTheme">@style/Theme.ObsLiteRecorder</item>
+
+        <!-- Systemleisten während des Splashscreens -->
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+</resources>

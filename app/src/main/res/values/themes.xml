@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Basis-App-Theme: hell, clean -->
+    <style name="Base.Theme.ObsLiteRecorder" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Fenster-Hintergrund -->
+        <item name="android:windowBackground">@color/white</item>
+
+        <!-- Material-Oberflächen -->
+        <item name="colorSurface">@color/white</item>
+
+        <!-- Textfarben -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
+        <!-- Schriftart -->
+        <item name="android:fontFamily">@font/open_sans_condensed</item>
+        <item name="fontFamily">@font/open_sans_condensed</item>
+
+        <!-- Statusleiste: weiß + dunkle Icons -->
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Navigationsleiste: weiß + dunkle Icons -->
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <!-- Normales App-Theme -->
+    <style name="Theme.ObsLiteRecorder" parent="Base.Theme.ObsLiteRecorder" />
+
+    <!-- Launcher-/Splash-Theme (hell) -->
+    <style name="Theme.ObsLiteRecorder.Launcher" parent="Theme.SplashScreen">
+
+        <!-- Vollbild-Hintergrund: weiß -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+
+        <!-- Schwarzes Logo (drawable/obs_splash_logo.xml) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/obs_splash_logo</item>
+
+        <!-- KEIN Icon-Hintergrund-Kreis mehr! -->
+
+        <!-- Nach dem Splashscreen auf das App-Theme wechseln -->
+        <item name="postSplashScreenTheme">@style/Theme.ObsLiteRecorder</item>
+
+        <!-- Optional: Systemleisten während des Splashscreens -->
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+</resources>

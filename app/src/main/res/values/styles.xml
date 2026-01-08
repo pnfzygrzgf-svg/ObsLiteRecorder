@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ===================================== -->
+    <!-- Typografie-Styles                     -->
+    <!-- ===================================== -->
+
+    <!-- Titel in Cards (z.B. "Sensorwerte", "Lenkerbreite") -->
+<style name="Widget.App.CardTitle" parent="TextAppearance.MaterialComponents.Body1">
+<item name="android:textColor">@color/text_primary</item>
+<item name="android:textSize">18sp</item>
+<item name="android:textStyle">bold</item>
+</style>
+
+    <!-- Untertitel / kleinere Beschreibungen -->
+<style name="Widget.App.CardSubtitle" parent="TextAppearance.MaterialComponents.Body2">
+<item name="android:textColor">@color/text_secondary</item>
+<item name="android:textSize">14sp</item>
+</style>
+
+    <!-- Hervorgehobene, große Werte (z.B. Überholabstand) -->
+<style name="Widget.App.HighlightValue" parent="TextAppearance.MaterialComponents.Body1">
+<item name="android:textColor">@color/text_primary</item>
+<item name="android:textSize">22sp</item>
+<item name="android:textStyle">bold</item>
+</style>
+
+    <!-- ===================================== -->
+    <!-- Button-Styles                         -->
+    <!-- ===================================== -->
+
+    <!-- Primärer, plastischer Button (Standard-Button) -->
+<style name="Widget.App.PrimaryButton" parent="Widget.MaterialComponents.Button">
+<!-- Tint deaktivieren, damit unser eigenes Drawable sichtbar bleibt -->
+<item name="backgroundTint">@null</item>
+
+<!-- Hintergrund (Drawable mit Verlauf) -->
+<item name="android:background">@drawable/bg_primary_button</item>
+
+<!-- Text-Eigenschaften -->
+<item name="android:textColor">@color/btn_primary_text</item>
+<item name="android:textAllCaps">false</item>
+<item name="android:textStyle">bold</item>
+
+<!-- Höhe & Innenabstand -->
+<item name="android:minHeight">40dp</item>
+<item name="android:paddingTop">6dp</item>
+<item name="android:paddingBottom">6dp</item>
+<item name="android:paddingLeft">16dp</item>
+<item name="android:paddingRight">16dp</item>
+
+<!-- Rundung & leichte Höhe -->
+<item name="cornerRadius">24dp</item>
+<item name="android:elevation">2dp</item>
+<item name="pressedTranslationZ">4dp</item>
+
+<!-- Ripple -->
+<item name="rippleColor">@color/btn_primary_ripple</item>
+
+<!-- Insets auf 0, damit oben/unten nichts zusätzlich draufkommt -->
+<item name="android:insetTop">0dp</item>
+<item name="android:insetBottom">0dp</item>
+</style>
+
+    <!-- Comic-Button mit „hochstehend / reingedrückt“-Effekt -->
+<style name="Widget.App.ComicButton" parent="Widget.MaterialComponents.Button">
+<!-- Kein Tint, damit unser eigenes Drawable (Selector) unverändert bleibt -->
+<item name="backgroundTint">@null</item>
+
+<!-- Unser Selector: normal + pressed (ohne Schatten) -->
+<item name="android:background">@drawable/bg_primary_button_comic</item>
+
+<!-- Text-Eigenschaften -->
+<item name="android:textColor">@color/btn_primary_text</item>
+<item name="android:textAllCaps">false</item>
+<item name="android:textStyle">bold</item>
+<item name="android:textSize">16sp</item>
+
+<!-- Größe / Innenabstand -->
+<item name="android:minHeight">40dp</item>
+<item name="android:paddingTop">8dp</item>
+<item name="android:paddingBottom">8dp</item>
+<item name="android:paddingLeft">20dp</item>
+<item name="android:paddingRight">20dp</item>
+
+<!-- 3D-Effekt kommt aus den Drawables, nicht aus Elevation -->
+<item name="android:elevation">0dp</item>
+<item name="pressedTranslationZ">0dp</item>
+
+<!-- Ripple -->
+<item name="rippleColor">@color/btn_primary_ripple</item>
+</style>
+
+    <!-- Dezenter Toggle-Button als Text-Button mit Rahmen -->
+<style name="Widget.App.ToggleButtonDezent" parent="Widget.MaterialComponents.Button.TextButton">
+<!-- Hintergrund transparent: wirkt wie Text-Button -->
+<item name="backgroundTint">@android:color/transparent</item>
+<item name="android:backgroundTint">@android:color/transparent</item>
+
+<!-- Dünner Rahmen: dezent, aber sichtbar -->
+<item name="strokeColor">@color/btn_border</item>
+<item name="strokeWidth">1dp</item>
+
+<!-- Text & Icon: Akzentfarbe -->
+<item name="android:textColor">@color/btn_primary_bg</item>
+<item name="iconTint">@color/btn_primary_bg</item>
+
+<!-- Typografie eher „Steuer-Element“ -->
+<item name="android:textAllCaps">false</item>
+<item name="android:textStyle">normal</item>
+<item name="android:textSize">14sp</item>
+
+<!-- Kompakter als Hauptbuttons -->
+<item name="android:minHeight">32dp</item>
+<item name="android:paddingTop">4dp</item>
+<item name="android:paddingBottom">4dp</item>
+<item name="android:paddingLeft">8dp</item>
+<item name="android:paddingRight">8dp</item>
+
+<!-- Kein 3D-Effekt / Schatten -->
+<item name="android:elevation">0dp</item>
+<item name="pressedTranslationZ">0dp</item>
+
+<!-- Ripple-Effekt -->
+<item name="rippleColor">@color/btn_primary_ripple</item>
+</style>
+
+    </resources>

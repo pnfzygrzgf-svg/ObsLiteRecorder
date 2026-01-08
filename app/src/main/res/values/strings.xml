@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- App-Name -->
+    <string name="app_name">OBS Lite Recorder</string>
+
+    <!-- Link ganz unten auf der Startseite -->
+    <string name="about_app_link">Über diese App</string>
+    <string name="about_app_title">Über diese App</string>
+
+    <!-- Intro mit HTML-Link auf OpenBikeSensor Lite -->
+    <string name="about_app_intro"><![CDATA[
+Diese App zeichnet Fahrten und Überholabstände auf, die mit einem
+<a href="https://www.openbikesensor.org/docs/lite/">OpenBikeSensor Lite</a>
+aufgezeichnet wurden.
+]]></string>
+
+    <string name="about_app_credits_header">Danksagungen &amp; verwendete Projekte</string>
+
+    <!-- \n macht Zeilenumbrüche in der UI -->
+    <string name="about_app_credits">
+        OpenBikeSensor – https://github.com/openbikesensor\n
+        In dieser App wird Code des OpenBikeSensor-Projekts verwendet.
+        Die Originalsoftware wird unter der GNU Lesser General Public License (LGPL-3.0) veröffentlicht.\n\n
+        OpenBikeSensor-Logo – https://github.com/turbo-distortion/OpenBikeSensor-Logo\n
+        Das in dieser App verwendete OpenBikeSensor-Logo wurde von Lukas Betzler als Beitrag zum
+        OpenBikeSensor-Projekt erstellt. Das Logo steht unter der Creative-Commons-Lizenz CC BY-SA 4.0.
+        Bei Weitergabe oder Anpassungen ist eine Namensnennung und das Teilen unter derselben Lizenz erforderlich.\n\n
+        SimRa Android App – https://github.com/simra-project/simra-android\n
+        Teile des Quellcodes, insbesondere zur Fahrtenaufzeichnung, basieren auf Code aus der SimRa Android App.
+        Diese steht unter der Apache License 2.0.
+    </string>
+
+    <string name="about_app_license_header">Lizenz dieser App</string>
+
+    <string name="about_app_license">
+        Diese App wird als Open-Source-Software bereitgestellt.\n
+        Die genaue Lizenz und aller Drittanbieter-Lizenzen findest du im Quellcode-Repository
+        (Datei LICENSE bzw. THIRD_PARTY_LICENSES).\n\n
+        Bitte beachte, dass für die oben genannten Projekte weiterhin deren eigene Lizenzen gelten
+        (LGPL-3.0, CC BY-SA 4.0, Apache-2.0).
+    </string>
+
+
+    <!-- ===================================== -->
+    <!-- Strings für Hauptbildschirm / Main UI -->
+    <!-- ===================================== -->
+
+    <!-- Aufnahme / USB -->
+    <string name="main_record_start">Aufnahme starten</string>
+    <string name="main_record_stop">Aufnahme stoppen</string>
+
+    <string name="main_usb_button_connect">OBS Lite verbinden</string>
+    <string name="main_usb_button_disconnect">OBS Lite trennen</string>
+
+    <string name="main_usb_status_disconnected">USB: nicht verbunden</string>
+    <string name="main_usb_status_connected">USB: verbunden</string>
+
+    <!-- Lenkerbreite -->
+    <string name="main_handlebar_label">Lenkerbreite (cm)</string>
+    <string name="main_handlebar_hint">Lenkerbreite (cm)</string>
+    <string name="main_handlebar_placeholder">z.B. 68</string>
+    <string name="main_handlebar_default">60</string>
+
+    <!-- Sensorwerte -->
+    <string name="main_sensor_title">Sensorwerte</string>
+    <string name="main_sensor_left">Links: -</string>
+    <string name="main_sensor_right">Rechts: -</string>
+    <string name="main_overtake_distance_placeholder">Überholabstand: -</string>
+
+    <!-- GPS / Karte -->
+    <string name="main_gps_status_no_fix">GPS: keine Daten</string>
+    <string name="main_gps_status_good">GPS: gut (+/- %1$d m)</string>
+    <string name="main_gps_status_ok">GPS: ok (+/- %1$d m)</string>
+    <string name="main_gps_status_weak">GPS: schwach (+/- %1$d m)</string>
+
+    <string name="main_map_show">Karte anzeigen</string>
+    <string name="main_map_hide">Karte ausblenden</string>
+
+    <!-- Toggle-Buttons Lenker (Ein-/Ausblenden) -->
+    <string name="main_toggle_show_handlebar">Lenkerbreite einblenden</string>
+    <string name="main_toggle_hide_handlebar">Lenkerbreite ausblenden</string>
+
+    <!-- Toggle-Buttons Sensor (Ein-/Ausblenden) -->
+    <string name="main_toggle_show_sensor">Sensorwerte einblenden</string>
+    <string name="main_toggle_hide_sensor">Sensorwerte ausblenden</string>
+
+
+    <!-- Untere Buttons -->
+    <string name="main_open_data">Aufgezeichnete Fahrten</string>
+    <string name="main_exit">App beenden</string>
+
+
+    <!-- ===================================== -->
+    <!-- Strings für Daten-/Upload-Screen      -->
+    <!-- ===================================== -->
+
+    <!-- Überschriften / Labels -->
+    <string name="data_title_upload">Portal Upload</string>
+    <string name="data_label_portal_url">Portal URL</string>
+    <string name="data_hint_portal_url">z.B. https://mein-server</string>
+
+    <string name="data_label_api_key">API-Key</string>
+    <string name="data_hint_api_key">API-Key eingeben</string>
+
+    <string name="data_label_bin_select">BIN-Datei auswählen</string>
+
+    <string name="data_button_upload">Datei hochladen</string>
+
+    <string name="data_status_no_upload_yet">Status: noch kein Upload</string>
+
+    <string name="data_section_bin_check_title">Letzte BIN prüfen</string>
+    <string name="data_button_bin_check">Letzte BIN prüfen</string>
+
+    <string name="data_section_files_title">Aufgezeichnete Fahrten</string>
+    <string name="data_button_delete_all">Alle Fahrten löschen</string>
+
+    <!-- Status- und Fehlermeldungen Upload -->
+
+    <!-- Ordner nicht gefunden -->
+    <string name="data_status_dir_not_found">Status: Ordner nicht gefunden: %1$s</string>
+    <string name="data_toast_dir_not_found">Ordner obslite existiert nicht.</string>
+
+    <!-- Keine BIN-Dateien im Ordner -->
+    <string name="data_status_no_bin_files">Status: keine .bin-Dateien gefunden.</string>
+    <string name="data_toast_no_bin_files">Keine .bin-Dateien gefunden.</string>
+
+    <!-- URL / API-Key fehlen -->
+    <string name="data_toast_fill_url_api">Bitte URL und API-Key ausfüllen.</string>
+
+    <!-- Keine BIN-Dateien zum Hochladen -->
+    <string name="data_toast_no_bin_for_upload">Keine BIN-Dateien zum Hochladen vorhanden.</string>
+
+    <!-- Keine Datei im Spinner gewählt -->
+    <string name="data_toast_select_bin_file">Bitte eine BIN-Datei auswählen.</string>
+
+    <!-- Datei existiert nicht mehr -->
+    <string name="data_status_file_missing">Status: Datei existiert nicht mehr: %1$s</string>
+    <string name="data_toast_file_missing">Datei existiert nicht mehr.</string>
+
+    <!-- Upload läuft / Ergebnis -->
+    <string name="data_status_upload_running">Status: Upload läuft...\nDatei: %1$s</string>
+
+    <string name="data_status_upload_success">
+        Status: Upload erfolgreich (%1$d)\nDatei: %2$s\n%3$s
+    </string>
+
+    <string name="data_status_upload_error">
+        Status: Fehler (%1$d)\nDatei: %2$s\n%3$s
+    </string>
+
+    <string name="data_status_upload_exception">Status: Ausnahmefehler: %1$s</string>
+
+    <string name="data_toast_upload_success">Upload erfolgreich</string>
+    <string name="data_toast_upload_failed">Upload fehlgeschlagen</string>
+    <string name="data_toast_upload_exception">Fehler beim Upload: %1$s</string>
+
+    <!-- Fahrtenliste -->
+    <string name="data_toast_no_recordings_found">Keine Fahrten gefunden</string>
+    <string name="data_toast_no_recordings">Keine Fahrten vorhanden</string>
+
+    <!-- Dialog: einzelne Fahrt löschen -->
+    <string name="data_dialog_delete_single_title">Fahrt löschen?</string>
+    <string name="data_dialog_delete_single_message">
+        Möchtest du die Fahrt "%1$s" wirklich löschen?
+    </string>
+    <string name="data_dialog_button_delete">Löschen</string>
+    <string name="data_dialog_button_cancel">Abbrechen</string>
+
+    <string name="data_toast_single_deleted">Fahrt gelöscht</string>
+    <string name="data_toast_single_delete_failed">Löschen fehlgeschlagen</string>
+
+    <!-- Dialog: alle Fahrten löschen -->
+    <string name="data_toast_no_recordings_to_delete">Keine Fahrten zum Löschen</string>
+    <string name="data_dialog_delete_all_title">Alle Fahrten löschen?</string>
+    <string name="data_dialog_delete_all_message">
+        Möchtest du wirklich alle aufgezeichneten Fahrten löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+    </string>
+    <string name="data_dialog_button_delete_all">Alle löschen</string>
+
+    <string name="data_toast_all_deleted">Alle Fahrten gelöscht</string>
+    <string name="data_toast_none_deleted">Keine Fahrt konnte gelöscht werden</string>
+    <string name="data_toast_some_deleted">%1$d Fahrten gelöscht, %2$d fehlgeschlagen</string>
+
+    <!-- BIN-Check -->
+    <string name="data_bin_check_running">BIN-Check läuft...</string>
+    <string name="data_bin_check_none_found">BIN-Check: keine .bin-Datei gefunden</string>
+    <string name="data_bin_check_file_info">BIN-Check: %1$s (%2$d B)</string>
+    <string name="data_bin_check_result">
+        BIN-Check fertig: %1$d B, Chunks=%2$d, OK=%3$d, Fehler=%4$d (Logcat: BIN_DEBUG)
+    </string>
+
+</resources>

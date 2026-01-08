@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Basisfarben -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Clean UI Farben -->
+    <color name="text_primary">#212121</color>
+    <!-- Sekundärtext: hier an deine Button-Farbe angelehnt -->
+    <color name="text_secondary">@color/btn_primary_bg</color>
+    <color name="border_soft">#E0E0E0</color>
+
+    <!-- Akzentfarbe (z.B. Links / Hervorhebungen) -->
+    <color name="accent">#2A7593</color>
+
+    <!-- Button-Farben -->
+    <color name="btn_primary_bg">#20556C</color>
+    <color name="btn_primary_light">#2DA3D2</color>
+    <color name="btn_primary_dark">#2A7593</color>
+    <color name="btn_primary_ripple">#332A7593</color>
+
+    <!-- Text auf Primary-/Comic-Buttons -->
+    <color name="btn_primary_text">@color/white</color>
+
+    <!-- Zentrale Randfarbe für Buttons / Comic-Ränder -->
+    <color name="btn_border">#2DA3D2</color>
+
+    <!-- Hintergrund der Main-Activity -->
+    <color name="background_main">@color/white</color>
+
+    <!-- Splash-Hintergrund -->
+    <color name="splash_background">#FFFFFF</color>
+
+    <!-- Optional: Hintergrund für alte Toggle-Variante (evtl. nicht mehr nötig) -->
+    <color name="toggle_button_bg">@color/btn_primary_light</color>
+
+</resources>

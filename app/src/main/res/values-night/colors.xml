@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basisfarben -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Texte auf dunklem Hintergrund -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+    <color name="border_soft">#333333</color>
+
+    <!-- Akzentfarbe -->
+    <color name="accent">#2DA3D2</color>
+
+    <!-- Button-Farben im Dark Mode -->
+    <color name="btn_primary_bg">#2A7593</color>
+    <color name="btn_primary_light">#2DA3D2</color>
+    <color name="btn_primary_dark">#184155</color>
+
+    <!-- Ripple auf dunklem Grund -->
+    <color name="btn_primary_ripple">#33FFFFFF</color>
+
+    <!-- Text-Farbe für Buttons im Dark Mode -->
+    <color name="btn_primary_text">@color/white</color>
+
+    <!-- Comic-Rand -->
+    <color name="btn_border">#2DA3D2</color>
+
+    <!-- Hintergrund der Main-Activity im Dark Mode -->
+    <color name="background_main">#121212</color>
+
+    <!-- Splash-Hintergrund im Dark Mode -->
+    <color name="splash_background">#000000</color>   <!-- schwarzer Hintergrund -->
+</resources>
