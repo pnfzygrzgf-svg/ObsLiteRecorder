@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -56,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.obsliterecorder.obslite.ObsLiteService
-import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
 
@@ -71,9 +69,6 @@ class MainActivity : ComponentActivity() {
     private var usbConnected by mutableStateOf(false)
     private var usbStatusText by mutableStateOf("USB: nicht verbunden")
 
-    private var gpsText by mutableStateOf("GPS: keine Daten")
-    private var gpsColor by mutableStateOf(Color.Gray)
-
     private var leftDistanceText by mutableStateOf("Links: -")
     private var rightDistanceText by mutableStateOf("Rechts: -")
     private var overtakeDistanceText by mutableStateOf("Überholabstand: -")
@@ -85,13 +80,14 @@ class MainActivity : ComponentActivity() {
     private var showSensorValues by mutableStateOf(false)
     private var handlebarWidthCm by mutableIntStateOf(60)
 
+    // Keep permission request (GPS used for recording in service)
     private val requestLocationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
                 obsService?.ensureLocationUpdates()
             } else {
-                gpsText = "GPS: keine Daten"
-                gpsColor = Color.Gray
+                // Intentionally no GPS UI state anymore
+                Log.w(TAG, "Location permission denied - recording will have no GPS.")
             }
         }
 
@@ -134,24 +130,6 @@ class MainActivity : ComponentActivity() {
                     rightDistanceText = svc.getRightDistanceText()
                     overtakeDistanceText = svc.getOvertakeDistanceText()
                     overtakeDistanceCm = extractCmNumber(overtakeDistanceText)
-
-                    val loc: Location? = svc.getLastLocation()
-                    if (loc != null) {
-                        val acc = loc.accuracy.roundToInt()
-                        gpsText = when {
-                            acc <= 10 -> "GPS: gut (±${acc} m)"
-                            acc <= 30 -> "GPS: ok (±${acc} m)"
-                            else -> "GPS: schwach (±${acc} m)"
-                        }
-                        gpsColor = when {
-                            acc <= 10 -> Color(0xFF34C759)
-                            acc <= 30 -> Color(0xFFFFCC00)
-                            else -> Color(0xFFFF3B30)
-                        }
-                    } else {
-                        gpsText = "GPS: keine Daten"
-                        gpsColor = Color.Gray
-                    }
                 } catch (t: Throwable) {
                     Log.e(TAG, "statusRunnable(): UI update error", t)
                 }
@@ -169,14 +147,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-
                 val deviceLabel = if (usbConnected) "OBS Lite" else "–"
 
                 IOSLikeRoot(
                     usbConnected = usbConnected,
                     usbStatusText = usbStatusText,
-                    gpsText = gpsText,
-                    gpsColor = gpsColor,
                     isRecording = isRecording,
                     deviceLabel = deviceLabel,
                     showSensorValues = showSensorValues,
@@ -271,8 +246,6 @@ class MainActivity : ComponentActivity() {
 private fun IOSLikeRoot(
     usbConnected: Boolean,
     usbStatusText: String,
-    gpsText: String,
-    gpsColor: Color,
     isRecording: Boolean,
     deviceLabel: String,
     showSensorValues: Boolean,
@@ -306,18 +279,12 @@ private fun IOSLikeRoot(
             )
 
             Spacer(Modifier.height(14.dp))
-
-            LogoBlock()
-
             Spacer(Modifier.height(14.dp))
-
 
             StatusCardIOS(
                 deviceLabel = deviceLabel,
                 connected = usbConnected,
-                usbText = usbStatusText,
-                gpsText = gpsText,
-                gpsColor = gpsColor
+                usbText = usbStatusText
             )
 
             Spacer(Modifier.height(14.dp))
@@ -350,13 +317,12 @@ private fun IOSLikeRoot(
             onTap = onRecordTap
         )
 
-
         BottomTabBarIOS(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 14.dp),
             selectedIndex = 0,
-            onSelect = { idx ->
+            onSelect = { idx: Int ->
                 if (idx == 1) onOpenRecordings()
             }
         )
@@ -398,29 +364,10 @@ private fun HeaderIOS(
 }
 
 @Composable
-private fun LogoBlock() {
-    CardIOS {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = "OPEN\nBIKE\nSENSOR",
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111111)
-            )
-            Text(
-                text = "OpenBikeSensor Lite Recorder",
-                color = Color(0xFF6B7280)
-            )
-        }
-    }
-}
-
-@Composable
 private fun StatusCardIOS(
     deviceLabel: String,
     connected: Boolean,
-    usbText: String,
-    gpsText: String,
-    gpsColor: Color
+    usbText: String
 ) {
     val dotColor = if (connected) Color(0xFF34C759) else Color(0xFFFF9500)
     val stateLabel = if (connected) "Verbunden" else "Warten…"
@@ -428,7 +375,6 @@ private fun StatusCardIOS(
     val pillFg = if (connected) Color(0xFF1B7A3C) else Color(0xFFB26A00)
 
     CardIOS {
-        // Gerätetyp + kleiner Status-Pill
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Gerätetyp", fontWeight = FontWeight.SemiBold)
@@ -437,11 +383,6 @@ private fun StatusCardIOS(
                     text = deviceLabel,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111111)
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = "Wird automatisch erkannt.",
-                    color = Color(0xFF6B7280)
                 )
             }
 
@@ -462,7 +403,6 @@ private fun StatusCardIOS(
         Divider(color = Color(0xFFE5E7EB))
         Spacer(Modifier.height(12.dp))
 
-        // Verbindung + Details
         Row(verticalAlignment = Alignment.Top) {
             DotIcon(color = dotColor)
             Spacer(Modifier.width(10.dp))
@@ -483,7 +423,6 @@ private fun StatusCardIOS(
                 Spacer(Modifier.height(6.dp))
 
                 Text(usbText, color = Color(0xFF6B7280))
-                Text(gpsText, color = gpsColor)
             }
         }
     }
@@ -540,7 +479,6 @@ private fun SensorCardIOS(
         Spacer(Modifier.height(10.dp))
 
         Text("Überholabstand", fontWeight = FontWeight.Bold)
-
         Spacer(Modifier.height(6.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -560,59 +498,7 @@ private fun SensorCardIOS(
     }
 }
 
-@Composable
-private fun DistanceColumnIOS(
-    title: String,
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    val cm = extractCorrectedFromText(text)
-
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold)
-
-        val value = cm?.toString() ?: "–"
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(6.dp))
-            Text("cm", color = Color(0xFF6B7280))
-        }
-
-        LinearProgressIndicator(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(99.dp)),
-            progress = progressForCm(cm),
-            color = overtakeColorIOS(cm),
-            trackColor = Color(0xFFE5E7EB)
-        )
-
-        Text("Berechnet", color = Color(0xFF6B7280), modifier = Modifier.alpha(0.9f))
-        Text(text, color = Color(0xFF6B7280), maxLines = 2, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-private fun extractCorrectedFromText(text: String): Int? {
-    val regex = Regex("""korrigiert:\s*(\d+)\s*cm""")
-    val m = regex.find(text) ?: return null
-    return m.groupValues.getOrNull(1)?.toIntOrNull()
-}
-
-private fun progressForCm(cm: Int?): Float {
-    if (cm == null) return 0f
-    val max = 200f
-    return (cm.coerceIn(0, 200) / max)
-}
-
-private fun overtakeColorIOS(cm: Int?): Color {
-    if (cm == null) return Color(0xFF9CA3AF)
-    return when {
-        cm >= 150 -> Color(0xFF34C759)
-        cm >= 100 -> Color(0xFFFFCC00)
-        else -> Color(0xFFFF3B30)
-    }
-}
+/* ========= HandlebarCardIOS / RecordPillIOS / BottomTabBarIOS (+ Helfer) ========= */
 
 @Composable
 private fun HandlebarCardIOS(
@@ -689,7 +575,7 @@ private fun RecordPillIOS(
                 Spacer(Modifier.width(10.dp))
 
                 Text(
-                    text,
+                    text = text,
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
@@ -774,37 +660,6 @@ private fun TabPillTextItem(
 }
 
 @Composable
-private fun CardIOS(content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun DotIcon(color: Color) {
-    Surface(
-        modifier = Modifier.size(18.dp),
-        shape = CircleShape,
-        color = Color.Transparent
-    ) {
-        Surface(
-            modifier = Modifier
-                .padding(4.dp)
-                .size(10.dp),
-            shape = CircleShape,
-            color = color
-        ) {}
-    }
-}
-
-@Composable
 private fun StepperIOS(
     onMinus: () -> Unit,
     onPlus: () -> Unit
@@ -833,5 +688,92 @@ private fun StepperButton(
 ) {
     TextButton(onClick = onClick) {
         Text(text, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+    }
+}
+
+/* ===================== Ende eingefügter Bereich ===================== */
+
+@Composable
+private fun DistanceColumnIOS(
+    title: String,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val cm = extractCorrectedFromText(text)
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold)
+
+        val value = cm?.toString() ?: "–"
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(6.dp))
+            Text("cm", color = Color(0xFF6B7280))
+        }
+
+        LinearProgressIndicator(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(99.dp)),
+            progress = progressForCm(cm),
+            color = overtakeColorIOS(cm),
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Text("Berechnet", color = Color(0xFF6B7280), modifier = Modifier.alpha(0.9f))
+        Text(text, color = Color(0xFF6B7280), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+private fun extractCorrectedFromText(text: String): Int? {
+    val regex = Regex("""korrigiert:\s*(\d+)\s*cm""")
+    val m = regex.find(text) ?: return null
+    return m.groupValues.getOrNull(1)?.toIntOrNull()
+}
+
+private fun progressForCm(cm: Int?): Float {
+    if (cm == null) return 0f
+    val max = 200f
+    return (cm.coerceIn(0, 200) / max)
+}
+
+private fun overtakeColorIOS(cm: Int?): Color {
+    if (cm == null) return Color(0xFF9CA3AF)
+    return when {
+        cm >= 150 -> Color(0xFF34C759)
+        cm >= 100 -> Color(0xFFFFCC00)
+        else -> Color(0xFFFF3B30)
+    }
+}
+
+@Composable
+private fun DotIcon(color: Color) {
+    Surface(
+        modifier = Modifier.size(18.dp),
+        shape = CircleShape,
+        color = Color.Transparent
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(4.dp)
+                .size(10.dp),
+            shape = CircleShape,
+            color = color
+        ) {}
+    }
+}
+
+@Composable
+private fun CardIOS(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            content()
+        }
     }
 }

@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileUpload
@@ -68,11 +67,12 @@ class DataActivity : ComponentActivity() {
     private var showDeleteSingleFor by mutableStateOf<File?>(null)
     private var showDeleteAllDialog by mutableStateOf(false)
 
-    private var isBinChecking by mutableStateOf(false)
-    private var binProgress by mutableIntStateOf(0)
-    private var binStatus by mutableStateOf("BIN-Check: bereit.")
+    // Debug/BIN-Check entfernt
+    // private var isBinChecking ...
+    // private var binProgress ...
+    // private var binStatus ...
 
-    private var tab by mutableIntStateOf(0) // 0=Upload, 1=Fahrten, 2=Debug
+    private var tab by mutableIntStateOf(0) // 0=Upload, 1=Fahrten
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,11 +107,6 @@ class DataActivity : ComponentActivity() {
                     recordings = recordings,
                     onDeleteSingle = { showDeleteSingleFor = it },
                     onDeleteAll = { showDeleteAllDialog = true },
-
-                    isBinChecking = isBinChecking,
-                    binProgress = binProgress,
-                    binStatus = binStatus,
-                    onRunBinCheck = { runBinCheck() },
 
                     onBack = { finish() }
                 )
@@ -273,90 +268,6 @@ class DataActivity : ComponentActivity() {
         }
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
-
-    // ---------- BIN Check ----------
-    private fun runBinCheck() {
-        if (isBinChecking) return
-        isBinChecking = true
-        binProgress = 0
-        binStatus = "BIN-Check läuft…"
-
-        Thread {
-            try {
-                debugValidateLastBin()
-            } finally {
-                runOnUiThread { isBinChecking = false }
-            }
-        }.start()
-    }
-
-    private fun debugValidateLastBin() {
-        val dir = File(getExternalFilesDir(null), "obslite")
-        val files = dir.listFiles { f -> f.isFile && f.name.endsWith(".bin") }
-            ?.sortedBy { it.lastModified() } ?: emptyList()
-
-        if (files.isEmpty()) {
-            runOnUiThread {
-                binStatus = "Keine .bin Datei gefunden."
-                binProgress = 0
-            }
-            return
-        }
-
-        val file = files.last()
-        val bytes = file.readBytes()
-
-        runOnUiThread {
-            binStatus = "Prüfe: ${file.name} (${bytes.size} Bytes)"
-        }
-
-        val chunks: List<ByteArray> = bytes.splitOnByte(0x00.toByte())
-        val totalChunks = chunks.size.coerceAtLeast(1)
-
-        var idx = 0
-        var okCount = 0
-        var errorCount = 0
-        var nonEmptyChunks = 0
-
-        for (chunk in chunks) {
-            if (chunk.isNotEmpty()) {
-                nonEmptyChunks++
-                try {
-                    val chunkList = java.util.LinkedList<Byte>().apply {
-                        chunk.forEach { b -> add(b) }
-                    }
-                    val decoded: ByteArray =
-                        com.example.obsliterecorder.util.CobsUtils.decode(chunkList)
-                    com.example.obsliterecorder.proto.Event.parseFrom(decoded)
-                    okCount++
-                } catch (_: Exception) {
-                    errorCount++
-                }
-            }
-
-            idx++
-            val p = (idx * 100) / totalChunks
-            runOnUiThread { binProgress = p }
-        }
-
-        runOnUiThread {
-            binProgress = 100
-            binStatus = "Ergebnis: ${file.name}\nnonEmpty=$nonEmptyChunks · ok=$okCount · errors=$errorCount"
-        }
-    }
-
-    private fun ByteArray.splitOnByte(separator: Byte): List<ByteArray> {
-        val result = mutableListOf<ByteArray>()
-        var start = 0
-        for (i in indices) {
-            if (this[i] == separator) {
-                result.add(if (i > start) copyOfRange(start, i) else ByteArray(0))
-                start = i + 1
-            }
-        }
-        if (start < size) result.add(copyOfRange(start, size))
-        return result
-    }
 }
 
 // ---------------------- UI (Compose) ----------------------
@@ -387,15 +298,9 @@ private fun DataScreen(
     onDeleteSingle: (File) -> Unit,
     onDeleteAll: () -> Unit,
 
-    isBinChecking: Boolean,
-    binProgress: Int,
-    binStatus: String,
-    onRunBinCheck: () -> Unit,
-
     onBack: () -> Unit
 ) {
     val bg = Color(0xFFF2F2F7)
-
 
     LazyColumn(
         modifier = Modifier
@@ -412,7 +317,7 @@ private fun DataScreen(
 
         item {
             SegmentedTabsIOS(
-                labels = listOf("Upload", "Fahrten", "Debug"),
+                labels = listOf("Upload", "Fahrten"),
                 selectedIndex = tab,
                 onSelect = onTabChange
             )
@@ -442,7 +347,7 @@ private fun DataScreen(
                 }
             }
 
-            1 -> {
+            else -> {
                 item {
                     RecordingsHeaderCardIOS(
                         recordingsCount = recordings.size,
@@ -460,17 +365,6 @@ private fun DataScreen(
                     items(recordings, key = { it.absolutePath }) { f ->
                         RecordingRowIOS(file = f, onClick = { onDeleteSingle(f) })
                     }
-                }
-            }
-
-            else -> {
-                item {
-                    DebugTabIOS(
-                        isRunning = isBinChecking,
-                        progress = binProgress,
-                        status = binStatus,
-                        onRun = onRunBinCheck
-                    )
                 }
             }
         }
@@ -643,9 +537,7 @@ private fun UploadCardIOS(
             ) {
                 binFiles.forEach { f ->
                     DropdownMenuItem(
-                        text = {
-                            Text(f.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        },
+                        text = { Text(f.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         onClick = {
                             expanded = false
                             onSelectBinFile(f)
@@ -750,50 +642,6 @@ private fun RecordingRowIOS(
             Spacer(Modifier.height(3.dp))
             Text("$date · $size", color = Color(0xFF6B7280))
         }
-    }
-}
-
-@Composable
-private fun DebugTabIOS(
-    isRunning: Boolean,
-    progress: Int,
-    status: String,
-    onRun: () -> Unit
-) {
-    CardIOS {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.BugReport, contentDescription = null, tint = Color(0xFF0A84FF))
-            Spacer(Modifier.width(10.dp))
-            Text("BIN-Check", fontWeight = FontWeight.SemiBold)
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        Button(
-            onClick = onRun,
-            enabled = !isRunning,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A84FF)),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text(if (isRunning) "Läuft…" else "Letzte BIN prüfen")
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        AnimatedVisibility(visible = isRunning, enter = fadeIn(), exit = fadeOut()) {
-            LinearProgressIndicator(
-                progress = (progress.coerceIn(0, 100) / 100f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(99.dp)),
-                color = Color(0xFF0A84FF),
-                trackColor = Color(0xFFE5E7EB)
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-        Text(status, color = Color(0xFF6B7280))
     }
 }
 
