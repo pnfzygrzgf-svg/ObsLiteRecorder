@@ -1,12 +1,18 @@
+// app/build.gradle.kts
+
 plugins {
     id("com.android.application")
-    kotlin("android")
-    id("com.google.protobuf") version "0.9.4"
+    id("org.jetbrains.kotlin.android")
+
+    // Required for Kotlin 2.0+ Compose
+    id("org.jetbrains.kotlin.plugin.compose")
+
+    id("com.google.protobuf")
 }
 
 android {
     namespace = "com.example.obsliterecorder"
-    compileSdk = 34   // 34 reicht völlig
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.obsliterecorder"
@@ -27,12 +33,24 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
@@ -42,10 +60,11 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation("androidx.compose.material:material-icons-extended")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
 
     // unsere Zusatz-Libs
     implementation("com.google.protobuf:protobuf-javalite:4.28.2")
@@ -55,11 +74,19 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("com.google.android.material:material:1.12.0")
 
-    // NEU: OkHttp für den Upload ins OBS-Portal
+    // OkHttp für den Upload ins OBS-Portal
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Compose
+    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 }
 
-// GANZ WICHTIG: protobuf{} steht AUßERHALB von dependencies{}
 protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:4.28.2"

@@ -1,3 +1,5 @@
+// ObsLiteService.kt
+
 package com.example.obsliterecorder.obslite
 
 import android.Manifest
@@ -38,6 +40,7 @@ import com.hoho.android.usbserial.util.SerialInputOutputManager
 import java.util.LinkedList
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.math.roundToInt
+import android.content.pm.PackageManager
 
 class ObsLiteService : Service(), SerialInputOutputManager.Listener {
 
@@ -60,13 +63,9 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     private lateinit var obsSession: OBSLiteSession
     private lateinit var fileWriter: OBSLiteFileWriter
 
-    @Volatile
-    private var isRecording: Boolean = false
+    @Volatile private var isRecording: Boolean = false
+    @Volatile private var lastLocation: Location? = null
 
-    @Volatile
-    private var lastLocation: Location? = null
-
-    // Single-threaded I/O: garantiert Reihenfolge, erspart synchronized
     private lateinit var ioThread: HandlerThread
     private lateinit var ioHandler: Handler
 
@@ -78,44 +77,15 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     private var usbIoManager: SerialInputOutputManager? = null
     private lateinit var usbPort: UsbSerialPort
 
-    @Volatile
-    private var obsLiteConnected = false
-
+    @Volatile private var obsLiteConnected = false
     private var permissionIntent: PendingIntent? = null
 
-    // Status-Text für die UI (MainActivity holt sich das zyklisch)
     @Volatile
     private var usbStatusText: String = "USB: nicht verbunden"
 
-    // Optional: spezifische VID/PID deines Geräts (sonst Fallback auf erstes)
+    // Optional: VID/PID fixieren (sonst erstes Gerät)
     private val TARGET_VENDOR_ID: Int? = null
     private val TARGET_PRODUCT_ID: Int? = null
-
-    private val usbReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_USB_PERMISSION) {
-                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent?.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                }
-
-                val granted = intent?.getBooleanExtra(
-                    UsbManager.EXTRA_PERMISSION_GRANTED,
-                    false
-                ) ?: false
-                Log.d(TAG, "USB permission result: device=$device granted=$granted")
-
-                if (granted && device != null) {
-                    usbDevice = device
-                    openUsbDevice()
-                } else {
-                    updateUsbStatus("USB: Berechtigung verweigert")
-                }
-            }
-        }
-    }
 
     // --- GPS / Location ---
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -128,20 +98,78 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     private lateinit var previewHandler: Handler
     private val previewMedian = OBSLiteSession.MovingMedian()
 
-    @Volatile
-    private var leftDistanceText: String = "Links: -"
+    @Volatile private var leftDistanceText: String = "Links: -"
+    @Volatile private var rightDistanceText: String = "Rechts: -"
+    @Volatile private var overtakeDistanceText: String = "Überholabstand: -"
 
-    @Volatile
-    private var rightDistanceText: String = "Rechts: -"
+    // Receiver: Permission + Attached/Detached
+    private val usbReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.action ?: return
 
-    @Volatile
-    private var overtakeDistanceText: String = "Überholabstand: -"
+            when (action) {
+                ACTION_USB_PERMISSION -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
 
-    fun getLastMedianAtPressCm(): Int? = obsSession.lastMedianAtPressCm
+                    val granted = intent.getBooleanExtra(
+                        UsbManager.EXTRA_PERMISSION_GRANTED,
+                        false
+                    )
+                    Log.d(TAG, "USB permission result: device=$device granted=$granted")
+
+                    if (granted && device != null) {
+                        usbDevice = device
+                        openUsbDevice()
+                    } else {
+                        updateUsbStatus("USB: Berechtigung verweigert")
+                    }
+                }
+
+                UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
+
+                    if (device != null && isTargetDevice(device)) {
+                        Log.d(TAG, "USB attached: $device -> auto connect")
+                        usbDevice = device
+                        autoConnectUsbIfPossible(device)
+                    }
+                }
+
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
+
+                    if (device != null) {
+                        val current = usbDevice
+                        if (current != null && device.deviceId == current.deviceId) {
+                            Log.d(TAG, "USB detached: $device -> disconnect")
+                            disconnectUsb()
+                            usbDevice = null
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onCreate()")
+
         obsSession = OBSLiteSession(this)
         fileWriter = OBSLiteFileWriter(this)
 
@@ -149,53 +177,45 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         ioThread.start()
         ioHandler = Handler(ioThread.looper)
 
-        // USB
+        // USB setup
         usbManager = getSystemService(USB_SERVICE) as UsbManager
         val explicitIntent = Intent(ACTION_USB_PERMISSION).setPackage(packageName)
-        val flag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            PendingIntent.FLAG_MUTABLE
-        else
-            0
+        val flag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
         permissionIntent = PendingIntent.getBroadcast(this, 0, explicitIntent, flag)
-        registerReceiver(usbReceiver, IntentFilter(ACTION_USB_PERMISSION))
+
+        val filter = IntentFilter().apply {
+            addAction(ACTION_USB_PERMISSION)
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        registerReceiver(usbReceiver, filter)
 
         // GPS
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         ensureLocationUpdates()
 
-        // Preview-Thread
+        // Preview thread
         previewThread = HandlerThread("preview-io")
         previewThread.start()
         previewHandler = Handler(previewThread.looper)
 
         createNotificationChannel()
+
+        // NEW: Auto-connect at service start (if device already plugged)
+        autoConnectOnServiceStart()
     }
 
-    override fun onBind(intent: Intent?): IBinder {
-        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "onBind()")
-        return binder
-    }
+    override fun onBind(intent: Intent?): IBinder = binder
 
-    /**
-     * Wird aufgerufen, wenn der Service per startForegroundService(...) gestartet wird.
-     * Hier starten wir die Foreground-Notification.
-     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "onStartCommand() id=$startId intent=$intent flags=$flags")
-        }
-        if (!isForeground) {
-            startInForeground()
-        }
-        // WICHTIG: nicht automatisch neu starten, wenn der Prozess gekillt wird
+        if (!isForeground) startInForeground()
         return START_NOT_STICKY
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val mgr = getSystemService(NotificationManager::class.java)
-            val existing = mgr.getNotificationChannel(CHANNEL_ID)
-            if (existing == null) {
+            if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
@@ -218,17 +238,15 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("OBS Lite Recorder")
             .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher) // ggf. eigenes Icon
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .build()
     }
 
     private fun startInForeground() {
-        val notification = buildNotification(isRecording)
-        startForeground(NOTIFICATION_ID, notification)
+        startForeground(NOTIFICATION_ID, buildNotification(isRecording))
         isForeground = true
-        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "startInForeground(): started")
     }
 
     private fun updateForegroundNotification() {
@@ -238,29 +256,18 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     }
 
     // --- API für Activity ---
-
     fun isRecordingActive(): Boolean = isRecording
-
     fun getLastLocation(): Location? = lastLocation
-
     fun getUsbStatus(): String = usbStatusText
-
     fun isUsbConnected(): Boolean = obsLiteConnected
-
     fun getLeftDistanceText(): String = leftDistanceText
-
     fun getRightDistanceText(): String = rightDistanceText
-
     fun getOvertakeDistanceText(): String = overtakeDistanceText
 
-    fun requestUsbPermissionFromUi() {
-        requestUsbPermission()
-    }
+    fun requestUsbPermissionFromUi() = requestUsbPermission()
+    fun disconnectUsbFromUi() = disconnectUsb()
 
-    fun disconnectUsbFromUi() {
-        disconnectUsb()
-    }
-
+    // --- Location ---
     fun ensureLocationUpdates() {
         if (locationCallback != null) return
         if (!hasLocationPermission()) {
@@ -268,15 +275,14 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             return
         }
 
-        val request = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            1000L
-        ).setMinUpdateIntervalMillis(500L).build()
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+            .setMinUpdateIntervalMillis(500L)
+            .build()
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 val loc = result.lastLocation ?: return
-                onLocationChangedInternal(loc)
+                lastLocation = loc
             }
         }
 
@@ -286,52 +292,31 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
                 locationCallback!!,
                 Looper.getMainLooper()
             )
-            Log.d(TAG, "ensureLocationUpdates(): location updates requested")
         } catch (e: SecurityException) {
             Log.e(TAG, "ensureLocationUpdates(): missing permission?", e)
         }
     }
 
     private fun stopLocationUpdatesInternal() {
-        locationCallback?.let {
-            fusedLocationClient.removeLocationUpdates(it)
-        }
+        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
     }
 
     private fun hasLocationPermission(): Boolean =
-        ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
 
-    // --- Recording-API ---
-
+    // --- Recording ---
     fun startRecording() {
-        if (isRecording) {
-            if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "startRecording(): already recording")
-            return
-        }
-        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "startRecording()")
-
-        // Alles auf IO-Thread ausführen, um Reihenfolge zu garantieren
+        if (isRecording) return
         ioHandler.post {
             try {
-                // frische Session für Fahrt
                 obsSession = OBSLiteSession(this)
-                // Datei öffnen
                 fileWriter.startSession()
                 isRecording = true
                 updateForegroundNotification()
-
-                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(
-                        TAG,
-                        "startRecording(): isRecording=$isRecording, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
-                    )
-                }
             } catch (e: Exception) {
-                Log.e(TAG, "startRecording(): failed to start session", e)
+                Log.e(TAG, "startRecording(): failed", e)
                 isRecording = false
                 updateForegroundNotification()
             }
@@ -339,199 +324,92 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     }
 
     fun stopRecording() {
-        if (!isRecording) {
-            if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording(): not recording")
-            return
-        }
-        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "stopRecording()")
-
+        if (!isRecording) return
         ioHandler.post {
             try {
                 fileWriter.finishSession()
-                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(
-                        TAG,
-                        "stopRecording(): file closed. sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
-                    )
-                }
             } catch (e: Exception) {
-                Log.e(TAG, "stopRecording(): error closing file", e)
+                Log.e(TAG, "stopRecording(): error", e)
             } finally {
                 isRecording = false
                 updateForegroundNotification()
-                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(TAG, "stopRecording(): isRecording=$isRecording")
-                }
             }
         }
     }
 
-    /**
-     * Wird aufgerufen, wenn der Nutzer die App im „Recents / Quadrat“-Screen wegwischt.
-     * → hier stoppen wir Aufnahme & Service sicher.
-     */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        Log.w(TAG, "onTaskRemoved(): app task removed, stopping recording & service")
-
-        // Aufnahme stoppen (falls aktiv)
         stopRecording()
-
-        // GPS/USB aufräumen
         stopLocationUpdatesInternal()
-        if (obsLiteConnected) {
-            disconnectUsb()
-        }
+        if (obsLiteConnected) disconnectUsb()
 
-        // Foreground-Notification entfernen und Service beenden
         if (isForeground) {
             stopForeground(STOP_FOREGROUND_REMOVE)
             isForeground = false
         }
-
         stopSelf()
-
         super.onTaskRemoved(rootIntent)
     }
 
-    /**
-     * USB-Daten vom OBS Lite; wird direkt vom Serial-Callback (im Service) aufgerufen.
-     * Wir verschieben sofort auf den IO-Thread.
-     */
-    fun onUsbData(data: ByteArray) {
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "onUsbData(): ${data.size} bytes, isRecording=$isRecording")
-        }
-
-        ioHandler.post {
-            // Rohdaten in Session-COBS-Puffer schieben
-            obsSession.fillByteList(data)
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(
-                    TAG,
-                    "onUsbData(): after fillByteList -> queueSize=${obsSession.debugGetQueueSize()}"
-                )
-            }
-
-            if (!isRecording) {
-                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(TAG, "onUsbData(): not recording, skip file write")
-                }
-                return@post
-            }
-
-            var handledCount = 0
-            val maxEvents = 10_000 // verhindert Endlosschleifen bei korrupten Streams
-            val startNs = System.nanoTime()
-            val maxDurationNs = 50_000_000L // ~50ms pro Batch
-
-            while (obsSession.completeCobsAvailable()) {
-                val loc: Location? = lastLocation
-                val bytes: ByteArray? = if (loc != null) {
-                    obsSession.handleEvent(
-                        lat = loc.latitude,
-                        lon = loc.longitude,
-                        altitude = loc.altitude,
-                        accuracy = loc.accuracy
-                    )
-                } else {
-                    // Keine Location verfügbar – neutraler Fallback
-                    obsSession.handleEvent(
-                        lat = 0.0,
-                        lon = 0.0,
-                        altitude = 0.0,
-                        accuracy = 9999f
-                    )
-                }
-
-                if (bytes != null && bytes.isNotEmpty()) {
-                    try {
-                        fileWriter.writeSessionData(bytes)
-                        if (Log.isLoggable(TAG, Log.DEBUG)) {
-                            Log.d(
-                                TAG,
-                                "onUsbData(): wrote ${bytes.size} bytes, sessionBytes=${obsSession.debugGetCompleteBytesSize()}, events=${obsSession.debugGetEventCount()}"
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "onUsbData(): write failed", e)
-                        // Schreibfehler nicht in Endlosschleife laufen lassen
-                        break
-                    }
-                }
-
-                handledCount++
-                if (handledCount >= maxEvents) {
-                    Log.e(TAG, "onUsbData(): safety stop after $handledCount events")
-                    break
-                }
-                if (System.nanoTime() - startNs > maxDurationNs) {
-                    // Batch begrenzen, um UI/andere Tasks nicht zu verhungern
-                    if (Log.isLoggable(TAG, Log.DEBUG)) {
-                        Log.d(
-                            TAG,
-                            "onUsbData(): batching stop after ${handledCount} events / ~50ms"
-                        )
-                    }
-                    break
-                }
-            }
-
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(
-                    TAG,
-                    "onUsbData(): handledCount=$handledCount, queueNow=${obsSession.debugGetQueueSize()}"
-                )
-            }
-        }
+    // --- USB auto connect helpers ---
+    private fun isTargetDevice(d: UsbDevice): Boolean {
+        return (TARGET_VENDOR_ID == null || d.vendorId == TARGET_VENDOR_ID) &&
+                (TARGET_PRODUCT_ID == null || d.productId == TARGET_PRODUCT_ID)
     }
 
-    /**
-     * Wird bei jedem neuen GPS-Fix aufgerufen.
-     * Die Session erzeugt Geolocation-Events beim Positionswechsel in handleEvent().
-     */
-    private fun onLocationChangedInternal(location: Location) {
-        lastLocation = location
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(
-                TAG,
-                "onLocationChanged(): rec=$isRecording, lat=${location.latitude}, lon=${location.longitude}, acc=${location.accuracy}"
-            )
-        }
+    private fun pickTargetDevice(): UsbDevice? {
+        val devices = usbManager.deviceList.values
+        if (devices.isEmpty()) return null
+        return devices.firstOrNull { isTargetDevice(it) } ?: devices.first()
     }
 
-    // --- USB intern ---
+    private fun autoConnectOnServiceStart() {
+        val dev = pickTargetDevice() ?: run {
+            updateUsbStatus("USB: kein Gerät")
+            return
+        }
+        usbDevice = dev
+        autoConnectUsbIfPossible(dev)
+    }
+
+    private fun autoConnectUsbIfPossible(device: UsbDevice) {
+        // Wenn Permission schon da → sofort öffnen
+        if (usbManager.hasPermission(device)) {
+            updateUsbStatus("USB: öffne Gerät…")
+            openUsbDevice()
+        } else {
+            // Permission noch nicht da → anfragen (User-Dialog)
+            updateUsbStatus("USB: frage Berechtigung…")
+            usbManager.requestPermission(device, permissionIntent)
+        }
+    }
 
     private fun requestUsbPermission() {
-        val devices = usbManager.deviceList.values
-        if (devices.isEmpty()) {
+        val target = pickTargetDevice()
+        if (target == null) {
             updateUsbStatus("USB: kein Gerät gefunden")
             return
         }
-        val target = devices.firstOrNull { d ->
-            (TARGET_VENDOR_ID == null || d.vendorId == TARGET_VENDOR_ID) &&
-                    (TARGET_PRODUCT_ID == null || d.productId == TARGET_PRODUCT_ID)
-        } ?: devices.first()
-
         usbDevice = target
-        updateUsbStatus("USB: Gerät gefunden, frage Berechtigung...")
+        updateUsbStatus("USB: frage Berechtigung…")
         usbManager.requestPermission(target, permissionIntent)
     }
 
     private fun openUsbDevice() {
+        if (obsLiteConnected) return
+
+        val dev = usbDevice ?: run {
+            updateUsbStatus("USB: kein Gerät")
+            return
+        }
+
         val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
         if (availableDrivers.isEmpty()) {
             updateUsbStatus("USB: kein serieller Treiber gefunden")
             return
         }
 
-        // Treiber passend zum freigegebenen Device wählen
-        val dev = usbDevice
-        val driver = if (dev != null) {
-            availableDrivers.firstOrNull { it.device.deviceId == dev.deviceId }
-                ?: availableDrivers.first()
-        } else {
-            availableDrivers.first()
-        }
+        val driver = availableDrivers.firstOrNull { it.device.deviceId == dev.deviceId }
+            ?: availableDrivers.first()
 
         val connection = usbManager.openDevice(driver.device)
         if (connection == null) {
@@ -548,6 +426,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
                 UsbSerialPort.STOPBITS_1,
                 UsbSerialPort.PARITY_NONE
             )
+
             usbIoManager = SerialInputOutputManager(usbPort, this).also { it.start() }
 
             obsLiteConnected = true
@@ -560,15 +439,9 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     }
 
     private fun disconnectUsb() {
-        try {
-            usbIoManager?.stop()
-        } catch (_: Exception) {
-        }
+        runCatching { usbIoManager?.stop() }
         usbIoManager = null
-        try {
-            if (this::usbPort.isInitialized) usbPort.close()
-        } catch (_: Exception) {
-        }
+        runCatching { if (this::usbPort.isInitialized) usbPort.close() }
 
         obsLiteConnected = false
         updateUsbStatus("USB: nicht verbunden")
@@ -576,13 +449,74 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
 
     private fun updateUsbStatus(text: String) {
         usbStatusText = text
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "USB status: $text")
+        if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "USB status: $text")
+    }
+
+    // --- Serial callbacks ---
+    override fun onNewData(data: ByteArray?) {
+        if (data == null) return
+        updateUsbStatus("USB: Daten ${data.size} B")
+        onUsbData(data)
+
+        previewHandler.post {
+            previewFillByteList(data)
+            var loops = 0
+            while (previewCompleteCobsAvailable()) {
+                handlePreviewEventSafe()
+                loops++
+                if (loops >= 1000) break
+            }
         }
     }
 
-    // --- Preview-COBS/Protobuf (Live-Anzeige) ---
+    override fun onRunError(e: Exception?) {
+        Log.e(TAG, "Serial IO error", e)
+        updateUsbStatus("USB: Fehler im Datenstrom")
+    }
 
+    // --- Session write path ---
+    fun onUsbData(data: ByteArray) {
+        ioHandler.post {
+            obsSession.fillByteList(data)
+            if (!isRecording) return@post
+
+            var handledCount = 0
+            val maxEvents = 10_000
+            val startNs = System.nanoTime()
+            val maxDurationNs = 50_000_000L
+
+            while (obsSession.completeCobsAvailable()) {
+                val loc = lastLocation
+                val bytes = if (loc != null) {
+                    obsSession.handleEvent(
+                        lat = loc.latitude,
+                        lon = loc.longitude,
+                        altitude = loc.altitude,
+                        accuracy = loc.accuracy
+                    )
+                } else {
+                    obsSession.handleEvent(
+                        lat = 0.0, lon = 0.0, altitude = 0.0, accuracy = 9999f
+                    )
+                }
+
+                if (bytes != null && bytes.isNotEmpty()) {
+                    try {
+                        fileWriter.writeSessionData(bytes)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "onUsbData(): write failed", e)
+                        break
+                    }
+                }
+
+                handledCount++
+                if (handledCount >= maxEvents) break
+                if (System.nanoTime() - startNs > maxDurationNs) break
+            }
+        }
+    }
+
+    // --- Preview path ---
     private fun previewFillByteList(data: ByteArray) {
         for (b in data) {
             if (lastByteReadPreview?.toInt() == 0x00 || byteListQueue.isEmpty()) {
@@ -606,7 +540,6 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         val list = byteListQueue.pollFirst() ?: return
         val hasZero = list.any { it.toInt() == 0x00 }
         if (!hasZero) {
-            // unvollständig -> wieder vorne einreihen
             byteListQueue.addFirst(list)
             return
         }
@@ -625,10 +558,8 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
                 val rawCm = (event.distanceMeasurement.distance * 100).roundToInt()
                 val sourceId = event.distanceMeasurement.sourceId
 
-                // Lenkerbreite aus SharedPreferences (wie in OBSLiteSession)
                 val handlebarWidthCm = getHandlebarWidthCm()
                 val corrected = ((rawCm - handlebarWidthCm / 2.0).coerceAtLeast(0.0)).roundToInt()
-
                 if (sourceId == 1) previewMedian.newValue(corrected)
 
                 val text = "Roh: ${rawCm} cm  |  korrigiert: ${corrected} cm"
@@ -657,51 +588,15 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         return prefs.getInt("handlebar_width_cm", 60)
     }
 
-    // --- SerialInputOutputManager.Listener ---
-
-    override fun onNewData(data: ByteArray?) {
-        if (data == null) return
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "onNewData: ${data.size} Bytes")
-        }
-
-        updateUsbStatus("USB: Daten ${data.size} B")
-        onUsbData(data)
-
-        // Preview-Verarbeitung auf Hintergrund-Thread
-        previewHandler.post {
-            previewFillByteList(data)
-            var loops = 0
-            val maxLoops = 1000
-            while (previewCompleteCobsAvailable()) {
-                handlePreviewEventSafe()
-                loops++
-                if (loops >= maxLoops) {
-                    Log.e(TAG, "Preview loop safety break ($loops)")
-                    break
-                }
-            }
-        }
-    }
-
-    override fun onRunError(e: Exception?) {
-        Log.e(TAG, "Serial IO error", e)
-        updateUsbStatus("USB: Fehler im Datenstrom")
-    }
-
     override fun onDestroy() {
         Log.w(TAG, "onDestroy(): service destroyed, isRecording=$isRecording")
 
-        // USB Receiver und Preview-Thread aufräumen
         runCatching { unregisterReceiver(usbReceiver) }
         previewThread.quitSafely()
 
-        // Falls noch Aufnahme läuft, Session sauber beenden
         ioHandler.post {
             try {
-                if (isRecording) {
-                    fileWriter.finishSession()
-                }
+                if (isRecording) fileWriter.finishSession()
             } catch (e: Exception) {
                 Log.e(TAG, "onDestroy(): error closing file", e)
             } finally {
@@ -712,12 +607,9 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
 
         stopLocationUpdatesInternal()
 
-        if (obsLiteConnected) {
-            disconnectUsb()
-        }
+        if (obsLiteConnected) disconnectUsb()
 
         if (isForeground) {
-            // Notification entfernen
             stopForeground(STOP_FOREGROUND_REMOVE)
             isForeground = false
         }

@@ -1,3 +1,4 @@
+// MainActivity.kt
 package com.example.obsliterecorder
 
 import android.content.ComponentName
@@ -5,38 +6,94 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.content.res.ColorStateList
-import android.graphics.Color
-import android.graphics.drawable.Drawable
-import android.os.Build
+import android.location.Location
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import android.view.View
-import android.widget.EditText
-import android.widget.TextView
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.example.obsliterecorder.obslite.ObsLiteService
-import com.google.android.material.button.MaterialButton
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
+import kotlin.math.roundToInt
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
 
-    // --- Service-Binding zum ObsLiteService ---
     private var obsService: ObsLiteService? = null
     private var bound = false
+
+    private val prefs: SharedPreferences by lazy {
+        getSharedPreferences("obslite_prefs", MODE_PRIVATE)
+    }
+
+    // Service state (polled)
+    private var usbConnected by mutableStateOf(false)
+    private var usbStatusText by mutableStateOf("USB: nicht verbunden")
+
+    private var gpsText by mutableStateOf("GPS: keine Daten")
+    private var gpsColor by mutableStateOf(Color.Gray)
+
+    private var leftDistanceText by mutableStateOf("Links: -")
+    private var rightDistanceText by mutableStateOf("Rechts: -")
+    private var overtakeDistanceText by mutableStateOf("Überholabstand: -")
+    private var overtakeDistanceCm by mutableStateOf<Int?>(null)
+
+    private var isRecording by mutableStateOf(false)
+
+    // UI state
+    private var showSensorValues by mutableStateOf(false)
+    private var handlebarWidthCm by mutableIntStateOf(60)
+
+    private val requestLocationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                obsService?.ensureLocationUpdates()
+            } else {
+                gpsText = "GPS: keine Daten"
+                gpsColor = Color.Gray
+            }
+        }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -44,18 +101,15 @@ class MainActivity : AppCompatActivity() {
             obsService = binder.getService()
             bound = true
 
-            // Aufnahme-Status vom Service übernehmen
             isRecording = obsService?.isRecordingActive() ?: false
-            updateRecordingUi()
+            handlebarWidthCm = loadHandlebarWidthCm()
 
-            // Falls Location-Permission schon da -> Service soll GPS-Updates starten
             if (hasLocationPermission()) {
                 obsService?.ensureLocationUpdates()
             } else {
                 requestLocationPermission()
             }
 
-            // UI-Status-Updates starten
             startStatusUiUpdates()
         }
 
@@ -66,97 +120,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // UI
-    private lateinit var btnRecord: MaterialButton
-    private lateinit var btnUsb: MaterialButton
-    private lateinit var tvUsbStatus: TextView
-    private lateinit var tvLeftDistance: TextView
-    private lateinit var tvRightDistance: TextView
-    private lateinit var tvOvertakeDistance: TextView
-    private lateinit var etHandlebarWidth: EditText
-    private lateinit var tvGpsStatus: TextView
-    private lateinit var mapView: MapView
-    private lateinit var btnToggleMap: MaterialButton
-
-    // Neuer Button für Unterseite
-    private lateinit var btnOpenData: MaterialButton
-
-    // App beenden
-    private lateinit var btnExit: MaterialButton
-
-    // Toggle für Lenkerbreite-Bereich
-    private lateinit var btnToggleHandlebar: MaterialButton
-    private lateinit var handlebarContent: View
-    private var isHandlebarVisible: Boolean = false
-
-    // Toggle für Sensorwerte-Bereich (Links/Rechts)
-    private lateinit var btnToggleSensor: MaterialButton
-    private lateinit var sensorContent: View
-    private var isSensorVisible: Boolean = false
-
-    private var isMapVisible: Boolean = false
-
-    private var locationMarker: Marker? = null
-    private var defaultLocationIcon: Drawable? = null
-
-    private var recordOriginalTint: ColorStateList? = null
-    private var usbOriginalTint: ColorStateList? = null
-
-    // Lokaler UI-Status (Service hält den echten Aufnahme-Status)
-    private var isRecording: Boolean = false
-
-    // SharedPreferences für Lenkerbreite
-    private val prefs: SharedPreferences by lazy {
-        getSharedPreferences(
-            "obslite_prefs",
-            MODE_PRIVATE
-        )
-    }
-
-    // Handler für periodische UI-Updates von Service-Daten
     private val uiHandler = Handler(Looper.getMainLooper())
     private val statusRunnable = object : Runnable {
         override fun run() {
-            if (bound && obsService != null) {
+            val svc = obsService
+            if (bound && svc != null) {
                 try {
-                    // USB-Status + Button + Icon
-                    if (obsService!!.isUsbConnected()) {
-                        tvUsbStatus.text = "USB: verbunden"
-                        tvUsbStatus.setTextColor(Color.parseColor("#4CAF50")) // grün
+                    usbConnected = svc.isUsbConnected()
+                    usbStatusText = svc.getUsbStatus()
+                    isRecording = svc.isRecordingActive()
 
-                        btnUsb.text = "OBS Lite trennen"
-                        btnUsb.backgroundTintList =
-                            ColorStateList.valueOf(Color.parseColor("#4CAF50"))
-                        btnUsb.icon = ContextCompat.getDrawable(
-                            this@MainActivity,
-                            R.drawable.ic_link_disconnect
-                        )
-                    } else {
-                        tvUsbStatus.text = "USB: nicht verbunden"
-                        tvUsbStatus.setTextColor(Color.GRAY)
+                    leftDistanceText = svc.getLeftDistanceText()
+                    rightDistanceText = svc.getRightDistanceText()
+                    overtakeDistanceText = svc.getOvertakeDistanceText()
+                    overtakeDistanceCm = extractCmNumber(overtakeDistanceText)
 
-                        btnUsb.text = "OBS Lite verbinden"
-                        btnUsb.backgroundTintList = usbOriginalTint
-                        btnUsb.icon = ContextCompat.getDrawable(
-                            this@MainActivity,
-                            R.drawable.ic_link_connect
-                        )
-                    }
-
-                    // Distanzen (Preview)
-                    tvLeftDistance.text = obsService!!.getLeftDistanceText()
-                    tvRightDistance.text = obsService!!.getRightDistanceText()
-                    tvOvertakeDistance.text = obsService!!.getOvertakeDistanceText()
-
-                    // GPS / Karte
-                    val loc = obsService!!.getLastLocation()
+                    val loc: Location? = svc.getLastLocation()
                     if (loc != null) {
-                        updateMapAndGpsStatus(loc.latitude, loc.longitude, loc.accuracy)
+                        val acc = loc.accuracy.roundToInt()
+                        gpsText = when {
+                            acc <= 10 -> "GPS: gut (±${acc} m)"
+                            acc <= 30 -> "GPS: ok (±${acc} m)"
+                            else -> "GPS: schwach (±${acc} m)"
+                        }
+                        gpsColor = when {
+                            acc <= 10 -> Color(0xFF34C759)
+                            acc <= 30 -> Color(0xFFFFCC00)
+                            else -> Color(0xFFFF3B30)
+                        }
                     } else {
-                        updateGpsStatusNoFix()
+                        gpsText = "GPS: keine Daten"
+                        gpsColor = Color.Gray
                     }
                 } catch (t: Throwable) {
-                    Log.e(TAG, "statusRunnable(): error updating UI", t)
+                    Log.e(TAG, "statusRunnable(): UI update error", t)
                 }
             }
             uiHandler.postDelayed(this, 1000L)
@@ -164,149 +161,44 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Splashscreen installieren
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // Foreground-Service für ObsLite starten (läuft unabhängig von der Activity weiter)
-        val serviceIntent = Intent(this, ObsLiteService::class.java)
-        ContextCompat.startForegroundService(this, serviceIntent)
+        // Start foreground service
+        ContextCompat.startForegroundService(this, Intent(this, ObsLiteService::class.java))
 
-        Configuration.getInstance().load(
-            applicationContext,
-            getSharedPreferences("osmdroid", MODE_PRIVATE)
-        )
-        Configuration.getInstance().userAgentValue = packageName
+        setContent {
+            MaterialTheme {
 
-        enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
+                val deviceLabel = if (usbConnected) "OBS Lite" else "–"
 
-        val root: View = findViewById(R.id.main)
-        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
-
-        // Views
-        btnRecord = findViewById(R.id.btnRecord)
-        btnUsb = findViewById(R.id.btnUsb)
-        tvUsbStatus = findViewById(R.id.tvUsbStatus)
-        tvLeftDistance = findViewById(R.id.tvLeftDistance)
-        tvRightDistance = findViewById(R.id.tvRightDistance)
-        tvOvertakeDistance = findViewById(R.id.tvOvertakeDistance)
-        etHandlebarWidth = findViewById(R.id.etHandlebarWidth)
-        tvGpsStatus = findViewById(R.id.tvGpsStatus)
-        mapView = findViewById(R.id.mapView)
-        btnToggleMap = findViewById(R.id.btnToggleMap)
-
-        btnToggleHandlebar = findViewById(R.id.btnToggleHandlebar)
-        handlebarContent = findViewById(R.id.handlebarContent)
-
-        // Sensor-Toggle
-        btnToggleSensor = findViewById(R.id.btnToggleSensor)
-        sensorContent = findViewById(R.id.sensorContent)
-
-        btnOpenData = findViewById(R.id.btnOpenData)
-        btnExit = findViewById(R.id.btnExit)
-
-        // About
-        findViewById<TextView>(R.id.tvAbout).setOnClickListener {
-            startActivity(Intent(this, AboutActivity::class.java))
-        }
-
-        // Karte konfigurieren
-        mapView.setTileSource(TileSourceFactory.MAPNIK)
-        mapView.setMultiTouchControls(true)
-        mapView.controller.setZoom(18.0)
-        mapView.controller.setCenter(GeoPoint(0.0, 0.0))
-
-        // Original-Tints merken (nur Record & USB)
-        recordOriginalTint = btnRecord.backgroundTintList
-        usbOriginalTint = btnUsb.backgroundTintList
-
-        // Karte initial ausblenden
-        isMapVisible = false
-        mapView.visibility = View.GONE
-        updateMapToggleUi()
-
-        btnToggleMap.setOnClickListener {
-            isMapVisible = !isMapVisible
-            mapView.visibility = if (isMapVisible) View.VISIBLE else View.GONE
-            updateMapToggleUi()
-        }
-
-        // Lenkerbreite-Bereich initial ausgeblendet
-        isHandlebarVisible = false
-        handlebarContent.visibility = View.GONE
-        updateHandlebarToggleUi()
-
-        btnToggleHandlebar.setOnClickListener {
-            isHandlebarVisible = !isHandlebarVisible
-            handlebarContent.visibility = if (isHandlebarVisible) View.VISIBLE else View.GONE
-            updateHandlebarToggleUi()
-        }
-
-        // Sensorwerte-Bereich initial ausgeblendet
-        isSensorVisible = false
-        sensorContent.visibility = View.GONE
-        updateSensorToggleUi()
-
-        btnToggleSensor.setOnClickListener {
-            isSensorVisible = !isSensorVisible
-            sensorContent.visibility = if (isSensorVisible) View.VISIBLE else View.GONE
-            updateSensorToggleUi()
-        }
-
-        // Neuer Button -> Unterseite Daten/Upload/Fahrten
-        btnOpenData.setOnClickListener {
-            startActivity(Intent(this, DataActivity::class.java))
-        }
-
-        // App beenden
-        btnExit.setOnClickListener {
-            exitApp()
-        }
-
-        // Lenkerbreite
-        etHandlebarWidth.setText(loadHandlebarWidthCm().toString())
-
-        // Start/Stop mit EINEM Button
-        btnRecord.setOnClickListener {
-            if (isRecording) {
-                obsService?.stopRecording()
-                isRecording = false
-            } else {
-                // Vor Start: Lenkerbreite in Preferences schreiben,
-                // damit Service/Session korrekte Werte haben
-                saveHandlebarWidthCm(getHandlebarWidthCm())
-                obsService?.startRecording()
-                isRecording = true
-            }
-            updateRecordingUi()
-        }
-
-        // USB über Service toggeln
-        btnUsb.setOnClickListener {
-            val svc = obsService
-            if (svc != null) {
-                if (svc.isUsbConnected()) {
-                    svc.disconnectUsbFromUi()
-                } else {
-                    svc.requestUsbPermissionFromUi()
-                }
+                IOSLikeRoot(
+                    usbConnected = usbConnected,
+                    usbStatusText = usbStatusText,
+                    gpsText = gpsText,
+                    gpsColor = gpsColor,
+                    isRecording = isRecording,
+                    deviceLabel = deviceLabel,
+                    showSensorValues = showSensorValues,
+                    onShowSensorValuesChange = { showSensorValues = it },
+                    leftText = leftDistanceText,
+                    rightText = rightDistanceText,
+                    overtakeCm = overtakeDistanceCm,
+                    handlebarWidthCm = handlebarWidthCm,
+                    onHandlebarWidthChange = { newValue ->
+                        handlebarWidthCm = newValue.coerceIn(30, 120)
+                        saveHandlebarWidthCm(handlebarWidthCm)
+                    },
+                    onInfoTap = { startActivity(Intent(this, AboutActivity::class.java)) },
+                    onRecordTap = { handleRecordTap() },
+                    onOpenRecordings = { startActivity(Intent(this, DataActivity::class.java)) }
+                )
             }
         }
-
-        // initial UI
-        updateRecordingUi()
-        updateGpsStatusNoFix()
-        btnUsb.icon = ContextCompat.getDrawable(this, R.drawable.ic_link_connect)
     }
 
     override fun onStart() {
         super.onStart()
-        // An Foreground-Service binden (für UI-Status, Start/Stop, USB-Steuerung)
         bindService(Intent(this, ObsLiteService::class.java), connection, BIND_AUTO_CREATE)
     }
 
@@ -319,167 +211,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        mapView.onResume()
-    }
-
     override fun onPause() {
         super.onPause()
-        mapView.onPause()
-        saveHandlebarWidthCm(getHandlebarWidthCm())
+        saveHandlebarWidthCm(handlebarWidthCm)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // Hier NICHT mehr USB/GPS trennen – das macht der Service selbst
-    }
+    private fun handleRecordTap() {
+        val svc = obsService ?: return
+        if (!usbConnected) return
 
-    // --- Permission-Callback für GPS ---
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED
-            ) {
-                obsService?.ensureLocationUpdates()
-            } else {
-                updateGpsStatusNoFix()
-            }
-        }
-    }
-
-    // --- Aufnahme-UI ---
-    private fun updateRecordingUi() {
         if (isRecording) {
-            btnRecord.text = "Aufnahme stoppen"
-            btnRecord.backgroundTintList =
-                ColorStateList.valueOf(Color.parseColor("#F44336")) // rot
-
-            btnRecord.icon = ContextCompat.getDrawable(this, R.drawable.ic_stop)
+            svc.stopRecording()
+            isRecording = false
         } else {
-            btnRecord.text = "Aufnahme starten"
-            btnRecord.backgroundTintList = recordOriginalTint
-
-            btnRecord.icon = ContextCompat.getDrawable(this, R.drawable.ic_record)
+            saveHandlebarWidthCm(handlebarWidthCm)
+            svc.startRecording()
+            isRecording = true
         }
     }
 
-    // --- Lenker-Toggle-UI ---
-    private fun updateHandlebarToggleUi() {
-        if (isHandlebarVisible) {
-            btnToggleHandlebar.text = "Ausblenden"
-            btnToggleHandlebar.icon =
-                ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
-        } else {
-            btnToggleHandlebar.text = "Einblenden"
-            btnToggleHandlebar.icon =
-                ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
-        }
-    }
-
-    // --- Sensor-Toggle-UI ---
-    private fun updateSensorToggleUi() {
-        if (isSensorVisible) {
-            btnToggleSensor.text = "Werte ausblenden"
-            btnToggleSensor.icon =
-                ContextCompat.getDrawable(this, R.drawable.ic_expand_less)
-        } else {
-            btnToggleSensor.text = "Werte einblenden"
-            btnToggleSensor.icon =
-                ContextCompat.getDrawable(this, R.drawable.ic_expand_more)
-        }
-    }
-
-    // --- Map-Toggle-UI ---
-    private fun updateMapToggleUi() {
-        if (isMapVisible) {
-            btnToggleMap.text = "Karte ausblenden"
-            btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
-        } else {
-            btnToggleMap.text = "Karte anzeigen"
-            btnToggleMap.icon = ContextCompat.getDrawable(this, R.drawable.ic_map)
-        }
-    }
-
-    // --- GPS/UI-Status (nur Anzeige, echte Updates im Service) ---
-    private var lastShown: GeoPoint? = null
-    private fun updateMapAndGpsStatus(lat: Double, lon: Double, accuracy: Float) {
-        // GPS-Status
-        val acc = accuracy.toInt()
-        val statusText = when {
-            acc <= 10 -> "GPS: gut (±${acc} m)"
-            acc <= 30 -> "GPS: ok (±${acc} m)"
-            else -> "GPS: schwach (±${acc} m)"
-        }
-        val color = when {
-            acc <= 10 -> Color.parseColor("#4CAF50")
-            acc <= 30 -> Color.parseColor("#FFC107")
-            else -> Color.parseColor("#F44336")
-        }
-        tvGpsStatus.text = statusText
-        tvGpsStatus.setTextColor(color)
-
-        // Map nur aktualisieren, wenn sichtbar
-        if (mapView.visibility != View.VISIBLE) return
-
-        val p = GeoPoint(lat, lon)
-        if (lastShown == null || p.distanceToAsDouble(lastShown) > 10.0) {
-            mapView.controller.setCenter(p)
-            lastShown = p
-        }
-
-        if (locationMarker == null) {
-            locationMarker = Marker(mapView).apply {
-                defaultLocationIcon = icon
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            }
-            mapView.overlays.add(locationMarker)
-        }
-        locationMarker?.apply {
-            position = p
-            icon = if (isRecording)
-                ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_location_bike)
-            else
-                defaultLocationIcon
-        }
-        mapView.invalidate()
-    }
-
-    private fun updateGpsStatusNoFix() {
-        tvGpsStatus.text = "GPS: keine Daten"
-        tvGpsStatus.setTextColor(Color.GRAY)
-    }
-
-    // --- Lenkerbreite persistieren ---
-    private fun loadHandlebarWidthCm(): Int = prefs.getInt(PREF_KEY_HANDLEBAR_WIDTH_CM, 60)
-
-    private fun saveHandlebarWidthCm(widthCm: Int) {
-        prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
-    }
-
-    private fun getHandlebarWidthCm(): Int {
-        val text = etHandlebarWidth.text?.toString()?.trim()
-        return text?.toIntOrNull() ?: loadHandlebarWidthCm()
-    }
-
-    // --- Location-Permission aus Activity heraus anfragen ---
-    private fun hasLocationPermission() =
+    private fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(
             this,
             android.Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
     private fun requestLocationPermission() {
-        ActivityCompat.requestPermissions(
-            this,
-            arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),
-            LOCATION_PERMISSION_REQUEST_CODE
-        )
+        requestLocationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
     private fun startStatusUiUpdates() {
@@ -491,41 +249,589 @@ class MainActivity : AppCompatActivity() {
         uiHandler.removeCallbacks(statusRunnable)
     }
 
-    // --- App komplett beenden ---
-    private fun exitApp() {
-        // 1) Aufnahme stoppen, falls aktiv
-        if (isRecording) {
-            obsService?.stopRecording()
-            isRecording = false
-            updateRecordingUi()
-        }
+    private fun loadHandlebarWidthCm(): Int = prefs.getInt(PREF_KEY_HANDLEBAR_WIDTH_CM, 60)
 
-        // 2) USB-Verbindung über Service trennen
-        obsService?.disconnectUsbFromUi()
+    private fun saveHandlebarWidthCm(widthCm: Int) {
+        prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
+    }
 
-        // 3) Foreground-Service stoppen
-        stopService(Intent(this, ObsLiteService::class.java))
-
-        // 4) Service-Binding lösen
-        if (bound) {
-            try {
-                unbindService(connection)
-            } catch (_: Exception) {
-            }
-            bound = false
-        }
-
-        // 5) Activity/Task schließen und aus „Letzte Apps“ entfernen
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            finishAndRemoveTask()
-        } else {
-            finishAffinity()
-        }
+    private fun extractCmNumber(text: String): Int? {
+        val regex = Regex("""(\d+)\s*cm""")
+        val m = regex.find(text) ?: return null
+        return m.groupValues.getOrNull(1)?.toIntOrNull()
     }
 
     companion object {
-        private const val TAG = "MainActivity_USB"
+        private const val TAG = "MainActivity"
         private const val PREF_KEY_HANDLEBAR_WIDTH_CM = "handlebar_width_cm"
-        private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
+    }
+}
+
+@Composable
+private fun IOSLikeRoot(
+    usbConnected: Boolean,
+    usbStatusText: String,
+    gpsText: String,
+    gpsColor: Color,
+    isRecording: Boolean,
+    deviceLabel: String,
+    showSensorValues: Boolean,
+    onShowSensorValuesChange: (Boolean) -> Unit,
+    leftText: String,
+    rightText: String,
+    overtakeCm: Int?,
+    handlebarWidthCm: Int,
+    onHandlebarWidthChange: (Int) -> Unit,
+    onInfoTap: () -> Unit,
+    onRecordTap: () -> Unit,
+    onOpenRecordings: () -> Unit
+) {
+    val bg = Color(0xFFF2F2F7)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bg)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(top = 18.dp, bottom = 140.dp)
+        ) {
+            HeaderIOS(
+                title = "OBS Recorder",
+                onInfoTap = onInfoTap
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            LogoBlock()
+
+            Spacer(Modifier.height(14.dp))
+
+
+            StatusCardIOS(
+                deviceLabel = deviceLabel,
+                connected = usbConnected,
+                usbText = usbStatusText,
+                gpsText = gpsText,
+                gpsColor = gpsColor
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            SensorCardIOS(
+                showSensorValues = showSensorValues,
+                onShowSensorValuesChange = onShowSensorValuesChange,
+                connected = usbConnected,
+                leftText = leftText,
+                rightText = rightText,
+                overtakeCm = overtakeCm
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            HandlebarCardIOS(
+                handlebarWidthCm = handlebarWidthCm,
+                onHandlebarWidthChange = onHandlebarWidthChange
+            )
+
+            Spacer(Modifier.height(14.dp))
+        }
+
+        RecordPillIOS(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 74.dp),
+            enabled = usbConnected,
+            isRecording = isRecording,
+            onTap = onRecordTap
+        )
+
+
+        BottomTabBarIOS(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 14.dp),
+            selectedIndex = 0,
+            onSelect = { idx ->
+                if (idx == 1) onOpenRecordings()
+            }
+        )
+    }
+}
+
+@Composable
+private fun HeaderIOS(
+    title: String,
+    onInfoTap: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            modifier = Modifier.align(Alignment.Center),
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(36.dp),
+            shape = CircleShape,
+            color = Color.White,
+            tonalElevation = 1.dp,
+            shadowElevation = 2.dp
+        ) {
+            TextButton(onClick = onInfoTap) {
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = "Info",
+                    tint = Color(0xFF0A84FF)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogoBlock() {
+    CardIOS {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = "OPEN\nBIKE\nSENSOR",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF111111)
+            )
+            Text(
+                text = "OpenBikeSensor Lite Recorder",
+                color = Color(0xFF6B7280)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusCardIOS(
+    deviceLabel: String,
+    connected: Boolean,
+    usbText: String,
+    gpsText: String,
+    gpsColor: Color
+) {
+    val dotColor = if (connected) Color(0xFF34C759) else Color(0xFFFF9500)
+    val stateLabel = if (connected) "Verbunden" else "Warten…"
+    val pillBg = if (connected) Color(0xFFE8F7EE) else Color(0xFFFFF3E0)
+    val pillFg = if (connected) Color(0xFF1B7A3C) else Color(0xFFB26A00)
+
+    CardIOS {
+        // Gerätetyp + kleiner Status-Pill
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Gerätetyp", fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = deviceLabel,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111111)
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Wird automatisch erkannt.",
+                    color = Color(0xFF6B7280)
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = pillBg
+            ) {
+                Text(
+                    text = stateLabel,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    color = pillFg,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Divider(color = Color(0xFFE5E7EB))
+        Spacer(Modifier.height(12.dp))
+
+        // Verbindung + Details
+        Row(verticalAlignment = Alignment.Top) {
+            DotIcon(color = dotColor)
+            Spacer(Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = if (connected) "Mit OBS verbunden" else "Nicht verbunden",
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = if (connected) "Das Gerät sendet Messwerte." else "Warten auf Sensorverbindung.",
+                    color = Color(0xFF6B7280)
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                Text(usbText, color = Color(0xFF6B7280))
+                Text(gpsText, color = gpsColor)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SensorCardIOS(
+    showSensorValues: Boolean,
+    onShowSensorValuesChange: (Boolean) -> Unit,
+    connected: Boolean,
+    leftText: String,
+    rightText: String,
+    overtakeCm: Int?
+) {
+    CardIOS {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Sensorwerte",
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(checked = showSensorValues, onCheckedChange = onShowSensorValuesChange)
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        if (showSensorValues) {
+            AnimatedVisibility(visible = connected, enter = fadeIn(), exit = fadeOut()) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        DistanceColumnIOS(
+                            title = "Abstand links",
+                            text = leftText,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(18.dp))
+                        DistanceColumnIOS(
+                            title = "Abstand rechts",
+                            text = rightText,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(visible = !connected, enter = fadeIn(), exit = fadeOut()) {
+                Text("Sensor nicht verbunden.", color = Color(0xFF6B7280))
+            }
+
+            Spacer(Modifier.height(10.dp))
+        }
+
+        Divider(color = Color(0xFFE5E7EB))
+        Spacer(Modifier.height(10.dp))
+
+        Text("Überholabstand", fontWeight = FontWeight.Bold)
+
+        Spacer(Modifier.height(6.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val color = overtakeColorIOS(overtakeCm)
+            Surface(
+                modifier = Modifier.size(10.dp),
+                shape = CircleShape,
+                color = color
+            ) {}
+            Spacer(Modifier.width(8.dp))
+
+            val value = overtakeCm?.toString() ?: "–"
+            Text(value, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(6.dp))
+            Text("cm", color = Color(0xFF6B7280))
+        }
+    }
+}
+
+@Composable
+private fun DistanceColumnIOS(
+    title: String,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val cm = extractCorrectedFromText(text)
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold)
+
+        val value = cm?.toString() ?: "–"
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(value, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(6.dp))
+            Text("cm", color = Color(0xFF6B7280))
+        }
+
+        LinearProgressIndicator(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(99.dp)),
+            progress = progressForCm(cm),
+            color = overtakeColorIOS(cm),
+            trackColor = Color(0xFFE5E7EB)
+        )
+
+        Text("Berechnet", color = Color(0xFF6B7280), modifier = Modifier.alpha(0.9f))
+        Text(text, color = Color(0xFF6B7280), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+private fun extractCorrectedFromText(text: String): Int? {
+    val regex = Regex("""korrigiert:\s*(\d+)\s*cm""")
+    val m = regex.find(text) ?: return null
+    return m.groupValues.getOrNull(1)?.toIntOrNull()
+}
+
+private fun progressForCm(cm: Int?): Float {
+    if (cm == null) return 0f
+    val max = 200f
+    return (cm.coerceIn(0, 200) / max)
+}
+
+private fun overtakeColorIOS(cm: Int?): Color {
+    if (cm == null) return Color(0xFF9CA3AF)
+    return when {
+        cm >= 150 -> Color(0xFF34C759)
+        cm >= 100 -> Color(0xFFFFCC00)
+        else -> Color(0xFFFF3B30)
+    }
+}
+
+@Composable
+private fun HandlebarCardIOS(
+    handlebarWidthCm: Int,
+    onHandlebarWidthChange: (Int) -> Unit
+) {
+    CardIOS {
+        Text("Lenkerbreite", fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$handlebarWidthCm", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(6.dp))
+            Text("cm", color = Color(0xFF6B7280))
+            Spacer(Modifier.weight(1f))
+
+            StepperIOS(
+                onMinus = { onHandlebarWidthChange(handlebarWidthCm - 1) },
+                onPlus = { onHandlebarWidthChange(handlebarWidthCm + 1) }
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Text("Wird zur Berechnung des Überholabstands verwendet.", color = Color(0xFF6B7280))
+    }
+}
+
+@Composable
+private fun RecordPillIOS(
+    modifier: Modifier,
+    enabled: Boolean,
+    isRecording: Boolean,
+    onTap: () -> Unit
+) {
+    val gradient = if (isRecording) {
+        Brush.horizontalGradient(listOf(Color(0xFFFF453A), Color(0xFFFF3B30)))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFF34C759), Color(0xFF30D158)))
+    }
+
+    val text = if (isRecording) "Aufnahme stoppen" else "Aufnahme starten"
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .heightIn(min = 58.dp)
+            .clip(RoundedCornerShape(18.dp)),
+        shadowElevation = if (enabled) 10.dp else 0.dp,
+        color = Color.Transparent
+    ) {
+        Button(
+            onClick = onTap,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(gradient, RoundedCornerShape(18.dp))
+                .alpha(if (enabled) 1f else 0.55f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(12.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+
+                Spacer(Modifier.width(10.dp))
+
+                Text(
+                    text,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (!enabled) {
+                    Text("Sensor nicht verbunden", color = Color.White.copy(alpha = 0.85f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomTabBarIOS(
+    modifier: Modifier,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    val outer = RoundedCornerShape(999.dp)
+
+    Surface(
+        modifier = modifier
+            .padding(horizontal = 28.dp)
+            .fillMaxWidth(),
+        shape = outer,
+        color = Color.White.copy(alpha = 0.92f),
+        shadowElevation = 12.dp
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            val gap = 8.dp
+            val itemWidth = (maxWidth - gap) / 2
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(gap)
+            ) {
+                TabPillTextItem(
+                    modifier = Modifier.width(itemWidth),
+                    selected = (selectedIndex == 0),
+                    label = "Sensor",
+                    onClick = { onSelect(0) }
+                )
+                TabPillTextItem(
+                    modifier = Modifier.width(itemWidth),
+                    selected = (selectedIndex == 1),
+                    label = "Aufzeichnungen",
+                    onClick = { onSelect(1) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabPillTextItem(
+    modifier: Modifier = Modifier,
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(999.dp)
+    val bg = if (selected) Color(0xFFE5E7EB) else Color.Transparent
+    val fg = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(bg)
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = fg, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    }
+}
+
+@Composable
+private fun CardIOS(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun DotIcon(color: Color) {
+    Surface(
+        modifier = Modifier.size(18.dp),
+        shape = CircleShape,
+        color = Color.Transparent
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(4.dp)
+                .size(10.dp),
+            shape = CircleShape,
+            color = color
+        ) {}
+    }
+}
+
+@Composable
+private fun StepperIOS(
+    onMinus: () -> Unit,
+    onPlus: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFE5E7EB)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StepperButton(text = "–", onClick = onMinus)
+            Divider(
+                modifier = Modifier
+                    .height(26.dp)
+                    .width(1.dp),
+                color = Color(0xFFD1D5DB)
+            )
+            StepperButton(text = "+", onClick = onPlus)
+        }
+    }
+}
+
+@Composable
+private fun StepperButton(
+    text: String,
+    onClick: () -> Unit
+) {
+    TextButton(onClick = onClick) {
+        Text(text, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
     }
 }
