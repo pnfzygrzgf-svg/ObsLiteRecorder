@@ -13,16 +13,6 @@ Betzler, https://github.com/pnfzygrzgf-svg/OpenBikeSensor-Logo
 
 Die App ist mittels *Vibecoding* erstellt worden. **Don't trust verify!**
 
-# Screenshots
-
-
-
-
-
-
-
-
-
 # APK
 
 https://github.com/pnfzygrzgf-svg/ObsLiteRecorder/releases
