@@ -584,7 +584,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     }
 
     private fun getHandlebarWidthCm(): Int {
-        val prefs = getSharedPreferences("obslite_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("obslite_prefs", MODE_PRIVATE)
         return prefs.getInt("handlebar_width_cm", 60)
     }
 

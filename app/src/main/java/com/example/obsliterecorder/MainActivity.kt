@@ -15,6 +15,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -35,13 +40,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +54,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,16 +85,13 @@ class MainActivity : ComponentActivity() {
     private var isRecording by mutableStateOf(false)
 
     // UI state
-    private var showSensorValues by mutableStateOf(false)
     private var handlebarWidthCm by mutableIntStateOf(60)
 
-    // Keep permission request (GPS used for recording in service)
     private val requestLocationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
                 obsService?.ensureLocationUpdates()
             } else {
-                // Intentionally no GPS UI state anymore
                 Log.w(TAG, "Location permission denied - recording will have no GPS.")
             }
         }
@@ -128,12 +133,14 @@ class MainActivity : ComponentActivity() {
 
                     leftDistanceText = svc.getLeftDistanceText()
                     rightDistanceText = svc.getRightDistanceText()
+
                     overtakeDistanceText = svc.getOvertakeDistanceText()
                     overtakeDistanceCm = extractCmNumber(overtakeDistanceText)
                 } catch (t: Throwable) {
                     Log.e(TAG, "statusRunnable(): UI update error", t)
                 }
             }
+            // Level 1 smoothing happens via animations in UI
             uiHandler.postDelayed(this, 1000L)
         }
     }
@@ -142,20 +149,21 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // Start foreground service
         ContextCompat.startForegroundService(this, Intent(this, ObsLiteService::class.java))
 
         setContent {
             MaterialTheme {
-                val deviceLabel = if (usbConnected) "OBS Lite" else "–"
+                // FIX: device label stable (no "–")
+                val deviceLabel = "OBS Lite"
+
+                // FIX: real selected state (tab bar not "fake")
+                var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
                 IOSLikeRoot(
                     usbConnected = usbConnected,
                     usbStatusText = usbStatusText,
                     isRecording = isRecording,
                     deviceLabel = deviceLabel,
-                    showSensorValues = showSensorValues,
-                    onShowSensorValuesChange = { showSensorValues = it },
                     leftText = leftDistanceText,
                     rightText = rightDistanceText,
                     overtakeCm = overtakeDistanceCm,
@@ -164,9 +172,13 @@ class MainActivity : ComponentActivity() {
                         handlebarWidthCm = newValue.coerceIn(30, 120)
                         saveHandlebarWidthCm(handlebarWidthCm)
                     },
+                    selectedIndex = selectedIndex,
+                    onSelectTab = { idx ->
+                        selectedIndex = idx
+                        if (idx == 1) startActivity(Intent(this, DataActivity::class.java))
+                    },
                     onInfoTap = { startActivity(Intent(this, AboutActivity::class.java)) },
-                    onRecordTap = { handleRecordTap() },
-                    onOpenRecordings = { startActivity(Intent(this, DataActivity::class.java)) }
+                    onRecordTap = { handleRecordTap() }
                 )
             }
         }
@@ -248,16 +260,15 @@ private fun IOSLikeRoot(
     usbStatusText: String,
     isRecording: Boolean,
     deviceLabel: String,
-    showSensorValues: Boolean,
-    onShowSensorValuesChange: (Boolean) -> Unit,
     leftText: String,
     rightText: String,
     overtakeCm: Int?,
     handlebarWidthCm: Int,
     onHandlebarWidthChange: (Int) -> Unit,
+    selectedIndex: Int,
+    onSelectTab: (Int) -> Unit,
     onInfoTap: () -> Unit,
-    onRecordTap: () -> Unit,
-    onOpenRecordings: () -> Unit
+    onRecordTap: () -> Unit
 ) {
     val bg = Color(0xFFF2F2F7)
 
@@ -273,12 +284,9 @@ private fun IOSLikeRoot(
                 .padding(horizontal = 16.dp)
                 .padding(top = 18.dp, bottom = 140.dp)
         ) {
-            HeaderIOS(
-                title = "OBS Recorder",
-                onInfoTap = onInfoTap
-            )
+            HeaderIOS(title = "OBS Recorder", onInfoTap = onInfoTap)
 
-            Spacer(Modifier.height(14.dp))
+            // Reduced "air"
             Spacer(Modifier.height(14.dp))
 
             StatusCardIOS(
@@ -287,25 +295,24 @@ private fun IOSLikeRoot(
                 usbText = usbStatusText
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
 
+            // No toggle; show values if connected, otherwise hint (smooth)
             SensorCardIOS(
-                showSensorValues = showSensorValues,
-                onShowSensorValuesChange = onShowSensorValuesChange,
                 connected = usbConnected,
                 leftText = leftText,
                 rightText = rightText,
                 overtakeCm = overtakeCm
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
 
             HandlebarCardIOS(
                 handlebarWidthCm = handlebarWidthCm,
                 onHandlebarWidthChange = onHandlebarWidthChange
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
         }
 
         RecordPillIOS(
@@ -321,10 +328,8 @@ private fun IOSLikeRoot(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 14.dp),
-            selectedIndex = 0,
-            onSelect = { idx: Int ->
-                if (idx == 1) onOpenRecordings()
-            }
+            selectedIndex = selectedIndex,
+            onSelect = onSelectTab
         )
     }
 }
@@ -369,60 +374,64 @@ private fun StatusCardIOS(
     connected: Boolean,
     usbText: String
 ) {
-    val dotColor = if (connected) Color(0xFF34C759) else Color(0xFFFF9500)
-    val stateLabel = if (connected) "Verbunden" else "Warten…"
-    val pillBg = if (connected) Color(0xFFE8F7EE) else Color(0xFFFFF3E0)
-    val pillFg = if (connected) Color(0xFF1B7A3C) else Color(0xFFB26A00)
+    // Connection colors are neutral (no orange warning semantics)
+    val dotTarget = if (connected) Color(0xFF34C759) else Color(0xFF9CA3AF)
+    val dotColor by animateColorAsState(dotTarget, label = "conn_dot")
+
+    val stateLabel = if (connected) "Verbunden" else "Nicht verbunden"
+    val pillBg = if (connected) Color(0xFFE8F7EE) else Color(0xFFF3F4F6)
+    val pillFg = if (connected) Color(0xFF1B7A3C) else Color(0xFF374151)
 
     CardIOS {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Gerätetyp", fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = deviceLabel,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111111)
-                )
+        Column(modifier = Modifier.animateContentSize()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Gerät", fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = deviceLabel,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111111)
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = pillBg
+                ) {
+                    Text(
+                        text = stateLabel,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = pillFg,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = pillBg
-            ) {
-                Text(
-                    text = stateLabel,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    color = pillFg,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
+            Spacer(Modifier.height(12.dp))
+            Divider(color = Color(0xFFE5E7EB))
+            Spacer(Modifier.height(12.dp))
 
-        Spacer(Modifier.height(12.dp))
-        Divider(color = Color(0xFFE5E7EB))
-        Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.Top) {
+                DotIcon(color = dotColor)
+                Spacer(Modifier.width(10.dp))
 
-        Row(verticalAlignment = Alignment.Top) {
-            DotIcon(color = dotColor)
-            Spacer(Modifier.width(10.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = if (connected) "Mit Sensor verbunden" else "Keine Sensorverbindung",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = if (connected) "Messwerte werden empfangen." else "Bitte OBS Lite verbinden.",
+                        color = Color(0xFF6B7280)
+                    )
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = if (connected) "Mit OBS verbunden" else "Nicht verbunden",
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = if (connected) "Das Gerät sendet Messwerte." else "Warten auf Sensorverbindung.",
-                    color = Color(0xFF6B7280)
-                )
-
-                Spacer(Modifier.height(6.dp))
-
-                Text(usbText, color = Color(0xFF6B7280))
+                    Spacer(Modifier.height(6.dp))
+                    Text(usbText, color = Color(0xFF6B7280))
+                }
             }
         }
     }
@@ -430,27 +439,22 @@ private fun StatusCardIOS(
 
 @Composable
 private fun SensorCardIOS(
-    showSensorValues: Boolean,
-    onShowSensorValuesChange: (Boolean) -> Unit,
     connected: Boolean,
     leftText: String,
     rightText: String,
     overtakeCm: Int?
 ) {
     CardIOS {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Sensorwerte",
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
-            Switch(checked = showSensorValues, onCheckedChange = onShowSensorValuesChange)
-        }
+        Column(modifier = Modifier.animateContentSize()) {
+            Text("Sensorwerte", fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(10.dp))
 
-        Spacer(Modifier.height(10.dp))
-
-        if (showSensorValues) {
-            AnimatedVisibility(visible = connected, enter = fadeIn(), exit = fadeOut()) {
+            // Option B (stable): AnimatedVisibility instead of AnimatedContent
+            AnimatedVisibility(
+                visible = connected,
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(120))
+            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         DistanceColumnIOS(
@@ -468,37 +472,71 @@ private fun SensorCardIOS(
                 }
             }
 
-            AnimatedVisibility(visible = !connected, enter = fadeIn(), exit = fadeOut()) {
+            AnimatedVisibility(
+                visible = !connected,
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(120))
+            ) {
                 Text("Sensor nicht verbunden.", color = Color(0xFF6B7280))
             }
 
-            Spacer(Modifier.height(10.dp))
-        }
+            Spacer(Modifier.height(12.dp))
+            Divider(color = Color(0xFFE5E7EB))
+            Spacer(Modifier.height(12.dp))
 
-        Divider(color = Color(0xFFE5E7EB))
-        Spacer(Modifier.height(10.dp))
-
-        Text("Überholabstand", fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            val color = overtakeColorIOS(overtakeCm)
-            Surface(
-                modifier = Modifier.size(10.dp),
-                shape = CircleShape,
-                color = color
-            ) {}
-            Spacer(Modifier.width(8.dp))
-
-            val value = overtakeCm?.toString() ?: "–"
-            Text(value, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(6.dp))
-            Text("cm", color = Color(0xFF6B7280))
+            OvertakeKpiRow(overtakeCm)
         }
     }
 }
 
-/* ========= HandlebarCardIOS / RecordPillIOS / BottomTabBarIOS (+ Helfer) ========= */
+private data class StatusLabel(val label: String, val color: Color)
+
+private fun overtakeStatus(cm: Int?): StatusLabel = when {
+    cm == null -> StatusLabel("–", Color(0xFF9CA3AF))
+    cm >= 150 -> StatusLabel("OK", Color(0xFF34C759))
+    cm >= 100 -> StatusLabel("Knapp", Color(0xFFFFCC00))
+    else -> StatusLabel("Gefährlich", Color(0xFFFF3B30))
+}
+
+@Composable
+private fun OvertakeKpiRow(overtakeCm: Int?) {
+    Text("Überholabstand", fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(6.dp))
+
+    val status = overtakeStatus(overtakeCm)
+    val animatedDot by animateColorAsState(status.color, label = "overtake_dot")
+
+    // Level 1 smoothing: animate number changes
+    val targetValue = overtakeCm ?: 0
+    val animatedValue by animateIntAsState(targetValue = targetValue, label = "overtake_value")
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics {
+            stateDescription = when (status.label) {
+                "OK" -> "Überholabstand ok"
+                "Knapp" -> "Überholabstand knapp"
+                "Gefährlich" -> "Überholabstand gefährlich"
+                else -> "Überholabstand unbekannt"
+            }
+        }
+    ) {
+        Surface(
+            modifier = Modifier.size(10.dp),
+            shape = CircleShape,
+            color = animatedDot
+        ) {}
+        Spacer(Modifier.width(8.dp))
+
+        Text(status.label, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(10.dp))
+
+        val showValue = if (overtakeCm == null) "–" else animatedValue.toString()
+        Text(showValue, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(6.dp))
+        Text("cm", color = Color(0xFF6B7280))
+    }
+}
 
 @Composable
 private fun HandlebarCardIOS(
@@ -546,7 +584,14 @@ private fun RecordPillIOS(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .heightIn(min = 58.dp)
-            .clip(RoundedCornerShape(18.dp)),
+            .clip(RoundedCornerShape(18.dp))
+            .semantics {
+                stateDescription = when {
+                    !enabled -> "Sensor nicht verbunden"
+                    isRecording -> "Aufnahme läuft"
+                    else -> "Bereit zur Aufnahme"
+                }
+            },
         shadowElevation = if (enabled) 10.dp else 0.dp,
         color = Color.Transparent
     ) {
@@ -584,7 +629,12 @@ private fun RecordPillIOS(
                 )
 
                 if (!enabled) {
-                    Text("Sensor nicht verbunden", color = Color.White.copy(alpha = 0.85f))
+                    Text(
+                        "Sensor nicht verbunden",
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -651,7 +701,7 @@ private fun TabPillTextItem(
         modifier = modifier
             .clip(shape)
             .background(bg)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Tab, onClick = onClick)
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -691,20 +741,29 @@ private fun StepperButton(
     }
 }
 
-/* ===================== Ende eingefügter Bereich ===================== */
-
 @Composable
 private fun DistanceColumnIOS(
     title: String,
     text: String,
     modifier: Modifier = Modifier
 ) {
-    val cm = extractCorrectedFromText(text)
+    // Parse service text: "Links (ID 1): Roh: 123 cm  |  korrigiert: 98 cm"
+    val correctedCm = extractCorrectedFromText(text)
+    val rawCm = extractRawFromText(text)
+    val labelPrefix = extractLabelPrefix(text) // "Links (ID 1)" / "Rechts (ID 2)" ...
+
+    // Level 1 smoothing: animate displayed number + progress (based on corrected)
+    val targetCm = correctedCm ?: 0
+    val animatedCm by animateIntAsState(targetValue = targetCm, label = "cm_anim")
+
+    val targetProgress = progressForCm(correctedCm)
+    val animatedProgress by animateFloatAsState(targetValue = targetProgress, label = "prog_anim")
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, fontWeight = FontWeight.SemiBold)
 
-        val value = cm?.toString() ?: "–"
+        // Primary: corrected cm
+        val value = if (correctedCm == null) "–" else animatedCm.toString()
         Row(verticalAlignment = Alignment.Bottom) {
             Text(value, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(6.dp))
@@ -716,13 +775,30 @@ private fun DistanceColumnIOS(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(99.dp)),
-            progress = progressForCm(cm),
-            color = overtakeColorIOS(cm),
+            progress = animatedProgress,
+            color = overtakeColorIOS(correctedCm),
             trackColor = Color(0xFFE5E7EB)
         )
 
-        Text("Berechnet", color = Color(0xFF6B7280), modifier = Modifier.alpha(0.9f))
-        Text(text, color = Color(0xFF6B7280), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        // Secondary: raw value (short, never ends at "Roh:")
+        val rawLine = if (rawCm != null) "Roh: $rawCm cm" else "Roh: –"
+        Text(
+            text = rawLine,
+            color = Color(0xFF6B7280),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        // Optional: show prefix (ID) in compact form
+        if (!labelPrefix.isNullOrBlank()) {
+            Text(
+                text = labelPrefix,
+                color = Color(0xFF6B7280),
+                modifier = Modifier.alpha(0.9f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -730,6 +806,19 @@ private fun extractCorrectedFromText(text: String): Int? {
     val regex = Regex("""korrigiert:\s*(\d+)\s*cm""")
     val m = regex.find(text) ?: return null
     return m.groupValues.getOrNull(1)?.toIntOrNull()
+}
+
+private fun extractRawFromText(text: String): Int? {
+    val regex = Regex("""Roh:\s*(\d+)\s*cm""")
+    val m = regex.find(text) ?: return null
+    return m.groupValues.getOrNull(1)?.toIntOrNull()
+}
+
+private fun extractLabelPrefix(text: String): String? {
+    // Everything before ": Roh:" -> "Links (ID 1)" / "Rechts (ID 2)" etc.
+    val regex = Regex("""^(.+?):\s*Roh:""")
+    val m = regex.find(text) ?: return null
+    return m.groupValues.getOrNull(1)?.trim()
 }
 
 private fun progressForCm(cm: Int?): Float {
