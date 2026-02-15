@@ -11,8 +11,12 @@
     <!-- Foreground-Service für dauerhafte Aufzeichnung im Hintergrund -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
-    <!-- Ab Android 14+: zusätzliches Permission für foregroundServiceType="location" -->
+    <!-- Ab Android 14+: zusätzliches Permission für foregroundServiceType="location|dataSync" -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Ab Android 13+: POST_NOTIFICATIONS für Foreground-Service-Benachrichtigung -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- USB-Host, weil du als Host ein externes USB-Gerät (OBS Lite) ansteckst -->
     <uses-feature
@@ -52,11 +56,22 @@
             android:exported="false"
             android:label="@string/about_app_title" />
 
-        <!-- Seite für Upload + Fahrten + BIN-Check -->
+        <!-- Portal Login via WebView -->
         <activity
-            android:name=".DataActivity"
+            android:name=".portal.PortalLoginActivity"
             android:exported="false"
-            android:label="Aufgezeichnete Fahrten" />
+            android:label="Portal Login" />
+
+        <!-- FileProvider fuer Datei-Sharing -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Foreground-Service, der USB + GPS komplett übernimmt -->
         <service

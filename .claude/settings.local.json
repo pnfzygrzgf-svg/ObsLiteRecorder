@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(./gradlew:*)",
+      "Bash(JAVA_HOME=\"/Applications/Android Studio.app/Contents/jbr/Contents/Home\" ./gradlew:*)",
+      "Bash(export JAVA_HOME:*)"
+    ]
+  }
+}

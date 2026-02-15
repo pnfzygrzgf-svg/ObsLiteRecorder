@@ -27,9 +27,10 @@ class OBSLiteFileWriter(private val context: Context) {
     /**
      * Startet eine neue Aufnahmesession und öffnet die Zieldatei.
      * Synchronisiert, um parallele Starts/Stops zu entkoppeln.
+     * @return true wenn die Datei erfolgreich erstellt wurde, false bei Fehler
      */
     @Synchronized
-    fun startSession() {
+    fun startSession(): Boolean {
         // Falls vorher nicht sauber beendet wurde
         if (outputStream != null || fileOutputStream != null) {
             Log.w(TAG, "startSession(): previous session still open – closing it now")
@@ -39,13 +40,13 @@ class OBSLiteFileWriter(private val context: Context) {
         val baseDir = context.getExternalFilesDir(null)
         if (baseDir == null) {
             Log.e(TAG, "startSession(): external files dir is null (storage unavailable)")
-            return
+            return false
         }
 
         val dir = File(baseDir, "obslite")
         if (!dir.exists() && !dir.mkdirs()) {
             Log.e(TAG, "startSession(): cannot create directory: ${dir.absolutePath}")
-            return
+            return false
         }
 
         // Kollisionsarm: dd_MM_yyyy_HHmmss
@@ -59,6 +60,7 @@ class OBSLiteFileWriter(private val context: Context) {
             outputStream = BufferedOutputStream(fos, 64 * 1024)
             currentFile = file
             Log.d(TAG, "startSession(): file=${file.absolutePath}")
+            return true
         } catch (e: IOException) {
             Log.e(TAG, "startSession(): failed to open output file", e)
             // Cleanup auf konsistenten Zustand
@@ -68,6 +70,7 @@ class OBSLiteFileWriter(private val context: Context) {
             fileOutputStream = null
             currentFile = null
             runCatching { if (file.exists()) file.delete() }
+            return false
         }
     }
 
@@ -133,10 +136,8 @@ class OBSLiteFileWriter(private val context: Context) {
         }
     }
 
-    /*
-@Synchronized
-fun getCurrentFileName(): String? = currentFile?.name
-*/
+    @Synchronized
+    fun getCurrentFileName(): String? = currentFile?.name
 
     // Nur intern: nach schwerem I/O-Fehler bestmöglich schließen
     private fun safeCloseOnError() {

@@ -11,7 +11,6 @@ import com.example.obsliterecorder.proto.Time
 import com.example.obsliterecorder.util.CobsUtils
 import com.google.protobuf.InvalidProtocolBufferException
 import java.util.LinkedList
-import java.util.TreeSet
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -42,7 +41,7 @@ class OBSLiteSession(private val context: Context) {
         return prefs.getInt("handlebar_width_cm", 60)
     }
 
-    private val movingMedian = MovingMedian()
+    private val timeWindowMin = TimeWindowMinimum()
 
     // --- Debug-Helfer ---
     fun debugGetCompleteBytesSize(): Int = totalBytesWritten
@@ -199,13 +198,13 @@ class OBSLiteSession(private val context: Context) {
 
                 // (2) Median füttern (nur left sensor sourceId==1) mit korrigierten cm
                 if (rawDm.sourceId == 1) {
-                    movingMedian.newValue(correctedCm)
+                    timeWindowMin.newValue(correctedCm)
                 }
 
                 if (Log.isLoggable(TAG, Log.DEBUG)) {
                     Log.d(
                         TAG,
-                        "handleEvent(): DM medianHas=${movingMedian.hasMedian()}"
+                        "handleEvent(): DM timeWindowHasValue=${timeWindowMin.hasValue()}"
                     )
                 }
 
@@ -234,14 +233,14 @@ class OBSLiteSession(private val context: Context) {
                     )
                 }
 
-                // (2) Distanz am Knopfzeitpunkt (nur wenn Median existiert)
-                if (movingMedian.hasMedian()) {
-                    val medianCm = movingMedian.median
-                    lastMedianAtPressCm = medianCm
+                // (2) Distanz am Knopfzeitpunkt (Minimum im 5s-Fenster, Portal-kompatibel)
+                if (timeWindowMin.hasValue()) {
+                    val minCm = timeWindowMin.minimum
+                    lastMedianAtPressCm = minCm
 
                     val dmAtPress = DistanceMeasurement.newBuilder()
                         .setSourceId(1)
-                        .setDistance(medianCm / 100.0f)
+                        .setDistance(minCm / 100.0f)
                         .build()
 
                     val dmPressEvent = Event.newBuilder()
@@ -258,13 +257,13 @@ class OBSLiteSession(private val context: Context) {
                     if (Log.isLoggable(TAG, Log.DEBUG)) {
                         Log.d(
                             TAG,
-                            "handleEvent(): DM@press saved: ${medianCm}cm -> ${dmAtPress.distance}m, encodedBytes=${encDmPress.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
+                            "handleEvent(): DM@press saved: ${minCm}cm -> ${dmAtPress.distance}m, encodedBytes=${encDmPress.size}, totalBytes=$totalBytesWritten, totalEvents=$totalEvents"
                         )
                     }
                 } else {
                     if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(
                         TAG,
-                        "handleEvent(): UserInput: no median yet"
+                        "handleEvent(): UserInput: no values in time window yet"
                     )
                 }
 
@@ -404,112 +403,35 @@ class OBSLiteSession(private val context: Context) {
     }
 
     /**
-     * Gleitender Median für die Distanzwerte (in cm).
-     * Belassen (nur kleine Korrekturen bei Rundung/Log).
+     * 5-Sekunden Time-Window Minimum fuer Distanzwerte (in cm).
+     * Portal-kompatibel: Gibt den Minimalwert innerhalb der letzten 5 Sekunden zurueck.
+     * (Gleiche Logik wie iOS BluetoothManager.timeWindowMinimum)
      */
-    class MovingMedian {
-        private val TAG = "MovingMedian_LOG"
-        private var distanceArray: ArrayList<Int> = ArrayList()
-        var windowSize = 3
-        var median: Int = 0
+    class TimeWindowMinimum {
+        private val TAG = "TimeWindowMin_LOG"
+        private val windowMs = 5000L // 5 Sekunden
+        private val entries = ArrayDeque<Entry>()
+        var minimum: Int = 0
             private set
 
-        fun hasMedian(): Boolean = distanceArray.size >= windowSize
+        private data class Entry(val value: Int, val timestampMs: Long)
 
-        class Pair(private var value: Int, private var index: Int) : Comparable<Pair?> {
-            override fun compareTo(other: Pair?): Int {
-                return if (index == other?.index) {
-                    0
-                } else if (value == other?.value) {
-                    index.compareTo(other.index)
-                } else {
-                    value.compareTo(other!!.value)
-                }
-            }
-
-            fun value(): Int = value
-
-            fun renew(v: Int, p: Int) {
-                value = v
-                index = p
-            }
-
-            override fun toString(): String {
-                return String.format("(%d, %d)", value, index)
-            }
-        }
-
-        private fun printMedian(
-            minSet: TreeSet<Pair?>,
-            maxSet: TreeSet<Pair?>,
-            window: Int
-        ): Int {
-            return if (window % 2 == 0) {
-                (((minSet.last()!!.value() + maxSet.first()!!.value()) / 2.0).roundToInt())
-            } else {
-                if (minSet.size > maxSet.size) minSet.last()!!.value() else maxSet.first()!!.value()
-            }
-        }
-
-        private fun findMedian(arr: ArrayList<Int>, k: Int): ArrayList<Int> {
-            val minSet = TreeSet<Pair?>()
-            val maxSet = TreeSet<Pair?>()
-            val result: ArrayList<Int> = ArrayList()
-
-            val windowPairs = arrayOfNulls<Pair>(k)
-            for (i in 0 until k) {
-                windowPairs[i] = Pair(arr[i], i)
-            }
-
-            for (i in 0 until (k / 2)) {
-                maxSet.add(windowPairs[i])
-            }
-            for (i in k / 2 until k) {
-                if (arr[i] < maxSet.first()!!.value()) {
-                    minSet.add(windowPairs[i])
-                } else {
-                    minSet.add(maxSet.pollFirst())
-                    maxSet.add(windowPairs[i])
-                }
-            }
-            result.add(printMedian(minSet, maxSet, k))
-            for (i in k until arr.size) {
-                val temp = windowPairs[i % k]
-                if (temp!!.value() <= minSet.last()!!.value()) {
-                    minSet.remove(temp)
-                    temp.renew(arr[i], i)
-                    if (temp.value() < maxSet.first()!!.value()) {
-                        minSet.add(temp)
-                    } else {
-                        minSet.add(maxSet.pollFirst())
-                        maxSet.add(temp)
-                    }
-                } else {
-                    maxSet.remove(temp)
-                    temp.renew(arr[i], i)
-                    if (temp.value() > minSet.last()!!.value()) {
-                        maxSet.add(temp)
-                    } else {
-                        maxSet.add(minSet.pollLast())
-                        minSet.add(temp)
-                    }
-                }
-                result.add(printMedian(minSet, maxSet, k))
-            }
-            return result
-        }
+        fun hasValue(): Boolean = entries.isNotEmpty()
 
         fun newValue(distanceCm: Int) {
-            // maximal ~5 s Historie (122 Werte), älteste Werte wegwerfen
-            if (distanceArray.size >= 122) {
-                distanceArray = ArrayList(distanceArray.drop(1))
+            val now = System.currentTimeMillis()
+            entries.addLast(Entry(distanceCm, now))
+
+            // Eintraege aelter als 5 Sekunden entfernen
+            while (entries.isNotEmpty() && now - entries.first().timestampMs > windowMs) {
+                entries.removeFirst()
             }
-            distanceArray.add(distanceCm)
-            if (distanceArray.size >= windowSize) {
-                val medians = findMedian(distanceArray, windowSize)
-                median = medians.last()
+
+            // Minimum im Fenster berechnen
+            if (entries.isNotEmpty()) {
+                minimum = entries.minOf { it.value }
                 if (Log.isLoggable(TAG, Log.DEBUG)) {
-                    Log.d(TAG, "new median = $median cm (from ${distanceArray.size} samples)")
+                    Log.d(TAG, "new minimum = $minimum cm (from ${entries.size} samples in 5s window)")
                 }
             }
         }

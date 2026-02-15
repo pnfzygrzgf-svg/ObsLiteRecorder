@@ -27,6 +27,8 @@ import androidx.core.content.ContextCompat
 import com.example.obsliterecorder.R
 import com.example.obsliterecorder.proto.Event
 import com.example.obsliterecorder.util.CobsUtils
+import com.example.obsliterecorder.util.RecordingStats
+import com.example.obsliterecorder.util.SessionStats
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -66,6 +68,13 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     @Volatile private var isRecording: Boolean = false
     @Volatile private var lastLocation: Location? = null
 
+    // --- Live Recording Stats (wie iOS) ---
+    @Volatile private var recordingStartTimeMs: Long = 0L
+    @Volatile private var currentOvertakeCount: Int = 0
+    @Volatile private var currentDistanceMeters: Double = 0.0
+    private var prevLocationForDistance: Location? = null
+    private var currentRecordingFileName: String? = null
+
     private lateinit var ioThread: HandlerThread
     private lateinit var ioHandler: Handler
 
@@ -83,6 +92,11 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     @Volatile
     private var usbStatusText: String = "USB: nicht verbunden"
 
+    @Volatile
+    private var usbDeviceName: String? = null
+    @Volatile
+    private var usbVendorProduct: String? = null
+
     // Optional: VID/PID fixieren (sonst erstes Gerät)
     private val TARGET_VENDOR_ID: Int? = null
     private val TARGET_PRODUCT_ID: Int? = null
@@ -96,11 +110,15 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     private var lastByteReadPreview: Byte? = null
     private lateinit var previewThread: HandlerThread
     private lateinit var previewHandler: Handler
-    private val previewMedian = OBSLiteSession.MovingMedian()
+    private val previewTimeWindowMin = OBSLiteSession.TimeWindowMinimum()
 
     @Volatile private var leftDistanceText: String = "Links: -"
     @Volatile private var rightDistanceText: String = "Rechts: -"
     @Volatile private var overtakeDistanceText: String = "Überholabstand: -"
+
+    // UI-Throttling: max 10 Updates/Sekunde (100ms) wie iOS
+    @Volatile private var lastPreviewUpdateMs: Long = 0L
+    private val previewThrottleMs = 100L
 
     // Receiver: Permission + Attached/Detached
     private val usbReceiver = object : BroadcastReceiver() {
@@ -188,7 +206,11 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
-        registerReceiver(usbReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(usbReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(usbReceiver, filter)
+        }
 
         // GPS
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -263,6 +285,11 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     fun getLeftDistanceText(): String = leftDistanceText
     fun getRightDistanceText(): String = rightDistanceText
     fun getOvertakeDistanceText(): String = overtakeDistanceText
+    fun getUsbDeviceName(): String? = usbDeviceName
+    fun getUsbVendorProduct(): String? = usbVendorProduct
+    fun getRecordingStartTimeMs(): Long = recordingStartTimeMs
+    fun getCurrentOvertakeCount(): Int = currentOvertakeCount
+    fun getCurrentDistanceMeters(): Double = currentDistanceMeters
 
     fun requestUsbPermissionFromUi() = requestUsbPermission()
     fun disconnectUsbFromUi() = disconnectUsb()
@@ -283,6 +310,18 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             override fun onLocationResult(result: LocationResult) {
                 val loc = result.lastLocation ?: return
                 lastLocation = loc
+
+                // Distanz akkumulieren waehrend Aufnahme (wie iOS, 3-2000m Filter)
+                if (isRecording) {
+                    val prev = prevLocationForDistance
+                    if (prev != null) {
+                        val segment = prev.distanceTo(loc).toDouble()
+                        if (segment > 3.0 && segment < 2000.0) {
+                            currentDistanceMeters += segment
+                        }
+                    }
+                    prevLocationForDistance = loc
+                }
             }
         }
 
@@ -312,8 +351,19 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         ioHandler.post {
             try {
                 obsSession = OBSLiteSession(this)
-                fileWriter.startSession()
-                isRecording = true
+                val success = fileWriter.startSession()
+                if (success) {
+                    isRecording = true
+                    recordingStartTimeMs = System.currentTimeMillis()
+                    currentOvertakeCount = 0
+                    currentDistanceMeters = 0.0
+                    prevLocationForDistance = null
+                    currentRecordingFileName = fileWriter.getCurrentFileName()
+                    Log.d(TAG, "startRecording(): recording started successfully")
+                } else {
+                    isRecording = false
+                    Log.e(TAG, "startRecording(): failed to create recording file")
+                }
                 updateForegroundNotification()
             } catch (e: Exception) {
                 Log.e(TAG, "startRecording(): failed", e)
@@ -328,10 +378,25 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         ioHandler.post {
             try {
                 fileWriter.finishSession()
+
+                // Stats speichern (wie iOS OvertakeStatsStore)
+                val fileName = currentRecordingFileName
+                if (fileName != null && (currentOvertakeCount > 0 || currentDistanceMeters > 0.0)) {
+                    val durationSec = (System.currentTimeMillis() - recordingStartTimeMs) / 1000
+                    val stats = RecordingStats(
+                        overtakeCount = currentOvertakeCount,
+                        distanceMeters = currentDistanceMeters,
+                        durationSeconds = durationSec
+                    )
+                    SessionStats(this@ObsLiteService).saveStats(fileName, stats)
+                    Log.d(TAG, "stopRecording(): stats saved for $fileName: overtakes=$currentOvertakeCount, dist=${currentDistanceMeters}m, dur=${durationSec}s")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "stopRecording(): error", e)
             } finally {
                 isRecording = false
+                recordingStartTimeMs = 0L
+                currentRecordingFileName = null
                 updateForegroundNotification()
             }
         }
@@ -430,8 +495,15 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             usbIoManager = SerialInputOutputManager(usbPort, this).also { it.start() }
 
             obsLiteConnected = true
+
+            // Geraete-Info aus USB-Descriptor lesen
+            usbDeviceName = driver.device.productName ?: driver.device.deviceName
+            val vid = String.format("%04X", driver.device.vendorId)
+            val pid = String.format("%04X", driver.device.productId)
+            usbVendorProduct = "VID:$vid PID:$pid"
+
             updateUsbStatus("USB: verbunden")
-            Log.d(TAG, "USB serial port opened")
+            Log.d(TAG, "USB serial port opened – device=${usbDeviceName}, $usbVendorProduct")
         } catch (e: Exception) {
             Log.e(TAG, "USB open error", e)
             updateUsbStatus("USB: Fehler beim Öffnen")
@@ -444,6 +516,8 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         runCatching { if (this::usbPort.isInitialized) usbPort.close() }
 
         obsLiteConnected = false
+        usbDeviceName = null
+        usbVendorProduct = null
         updateUsbStatus("USB: nicht verbunden")
     }
 
@@ -560,19 +634,28 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
 
                 val handlebarWidthCm = getHandlebarWidthCm()
                 val corrected = ((rawCm - handlebarWidthCm / 2.0).coerceAtLeast(0.0)).roundToInt()
-                if (sourceId == 1) previewMedian.newValue(corrected)
+                if (sourceId == 1) previewTimeWindowMin.newValue(corrected)
 
-                val text = "Roh: ${rawCm} cm  |  korrigiert: ${corrected} cm"
-                if (sourceId == 1) {
-                    leftDistanceText = "Links (ID 1): $text"
-                } else {
-                    rightDistanceText = "Rechts (ID $sourceId): $text"
+                // UI-Throttling: max 10 Updates/Sekunde (wie iOS)
+                val now = System.currentTimeMillis()
+                if (now - lastPreviewUpdateMs >= previewThrottleMs) {
+                    lastPreviewUpdateMs = now
+                    val text = "Roh: ${rawCm} cm  |  korrigiert: ${corrected} cm"
+                    if (sourceId == 1) {
+                        leftDistanceText = "Links (ID 1): $text"
+                    } else {
+                        rightDistanceText = "Rechts (ID $sourceId): $text"
+                    }
                 }
             } else if (event.hasUserInput()) {
                 val uiType = event.userInput.type
                 usbStatusText = "UserInput: $uiType"
-                overtakeDistanceText = if (previewMedian.hasMedian()) {
-                    "Überholabstand: ${previewMedian.median} cm"
+                // Ueberholungs-Counter hochzaehlen (wie iOS)
+                if (isRecording) {
+                    currentOvertakeCount++
+                }
+                overtakeDistanceText = if (previewTimeWindowMin.hasValue()) {
+                    "Überholabstand: ${previewTimeWindowMin.minimum} cm"
                 } else {
                     "Überholabstand: -"
                 }

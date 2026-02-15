@@ -1,79 +1,55 @@
-// MainActivity.kt
+// MainActivity.kt - Tab-Host für die App (wie iOS)
 package com.example.obsliterecorder
 
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.obsliterecorder.obslite.ObsLiteService
+import com.example.obsliterecorder.portal.PortalApiClient
+import com.example.obsliterecorder.portal.PortalLoginActivity
+import com.example.obsliterecorder.portal.PortalTrackSummary
+import com.example.obsliterecorder.portal.PortalTracksResult
+import androidx.core.content.FileProvider
+import com.example.obsliterecorder.ui.*
+import com.example.obsliterecorder.util.PrefsHelper
+import com.example.obsliterecorder.util.SessionStats
+import com.example.obsliterecorder.util.TotalStats
+import java.io.File
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
 
     private var obsService: ObsLiteService? = null
     private var bound = false
 
-    private val prefs: SharedPreferences by lazy {
-        getSharedPreferences("obslite_prefs", MODE_PRIVATE)
-    }
+    private val prefs: PrefsHelper by lazy { PrefsHelper(this) }
+    private val obsUploader = ObsUploader()
 
-    // Service state (polled)
+    // --- Service state (polled) ---
     private var usbConnected by mutableStateOf(false)
     private var usbStatusText by mutableStateOf("USB: nicht verbunden")
 
@@ -83,17 +59,77 @@ class MainActivity : ComponentActivity() {
     private var overtakeDistanceCm by mutableStateOf<Int?>(null)
 
     private var isRecording by mutableStateOf(false)
-
-    // UI state
     private var handlebarWidthCm by mutableIntStateOf(60)
+
+    // --- Device Info ---
+    private var usbDeviceName by mutableStateOf<String?>(null)
+    private var usbVendorProduct by mutableStateOf<String?>(null)
+
+    // --- Live Recording Stats ---
+    private var recordingDurationSec by mutableStateOf(0L)
+    private var recordingDistanceMeters by mutableStateOf(0.0)
+    private var recordingOvertakeCount by mutableIntStateOf(0)
+
+    // --- Location state ---
+    private var currentLatitude by mutableStateOf<Double?>(null)
+    private var currentLongitude by mutableStateOf<Double?>(null)
+
+    // --- Map state ---
+    private var overtakeEvents = mutableStateListOf<OvertakeEvent>()
+    private var lastOvertakeEvent by mutableStateOf<OvertakeEvent?>(null)
+
+    // --- Recordings state ---
+    private var obsUrl by mutableStateOf("")
+    private var apiKey by mutableStateOf("")
+    private var binFiles by mutableStateOf<List<File>>(emptyList())
+    private var selectedBinFile by mutableStateOf<File?>(null)
+    private var uploadStatus by mutableStateOf("Noch kein Upload ausgeführt.")
+    private var isUploading by mutableStateOf(false)
+    private var recordings by mutableStateOf<List<File>>(emptyList())
+
+    // --- Portal Tracks state ---
+    private var portalTracks by mutableStateOf<List<PortalTrackSummary>>(emptyList())
+    private var isLoadingPortalTracks by mutableStateOf(false)
+    private var portalError by mutableStateOf<String?>(null)
+    private var selectedPortalTrack by mutableStateOf<PortalTrackSummary?>(null)
+
+    // --- Stats ---
+    private val sessionStats: SessionStats by lazy { SessionStats(this) }
+    private var totalStats by mutableStateOf<TotalStats?>(null)
+
+    // --- Upload Progress ---
+    private var uploadProgress by mutableStateOf(0f)
+
+    // --- Local Track Detail ---
+    private var selectedLocalFile by mutableStateOf<File?>(null)
+
+    // --- Dialogs ---
+    private var showDeleteSingleFor by mutableStateOf<File?>(null)
+    private var showDeleteAllDialog by mutableStateOf(false)
+    private var showSaveToast by mutableStateOf(false)
+    private var showSettingsSaved by mutableStateOf(false)
+
+    // --- Portal Login ---
+    private val portalLoginLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                // Nach erfolgreichem Login Tracks laden
+                loadPortalTracks()
+            }
+        }
 
     private val requestLocationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
                 obsService?.ensureLocationUpdates()
             } else {
-                Log.w(TAG, "Location permission denied - recording will have no GPS.")
+                Log.w(TAG, "Location permission denied")
             }
+        }
+
+    private val requestNotificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            Log.d(TAG, "Notification permission granted=$granted")
         }
 
     private val connection = object : ServiceConnection {
@@ -103,7 +139,7 @@ class MainActivity : ComponentActivity() {
             bound = true
 
             isRecording = obsService?.isRecordingActive() ?: false
-            handlebarWidthCm = loadHandlebarWidthCm()
+            handlebarWidthCm = prefs.handlebarWidthCm
 
             if (hasLocationPermission()) {
                 obsService?.ensureLocationUpdates()
@@ -122,6 +158,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private val uiHandler = Handler(Looper.getMainLooper())
+    private var lastOvertakeCmForEvent: Int? = null
+
     private val statusRunnable = object : Runnable {
         override fun run() {
             val svc = obsService
@@ -129,19 +167,69 @@ class MainActivity : ComponentActivity() {
                 try {
                     usbConnected = svc.isUsbConnected()
                     usbStatusText = svc.getUsbStatus()
+
+                    val wasRecording = isRecording
                     isRecording = svc.isRecordingActive()
+
+                    // Show save toast when recording stops
+                    if (wasRecording && !isRecording) {
+                        showSaveToast = true
+                        uiHandler.postDelayed({ showSaveToast = false }, 2000)
+                        refreshFiles()
+                    }
 
                     leftDistanceText = svc.getLeftDistanceText()
                     rightDistanceText = svc.getRightDistanceText()
-
                     overtakeDistanceText = svc.getOvertakeDistanceText()
                     overtakeDistanceCm = extractCmNumber(overtakeDistanceText)
+
+                    usbDeviceName = svc.getUsbDeviceName()
+                    usbVendorProduct = svc.getUsbVendorProduct()
+
+                    // Live Recording Stats
+                    if (isRecording) {
+                        val startMs = svc.getRecordingStartTimeMs()
+                        recordingDurationSec = if (startMs > 0) (System.currentTimeMillis() - startMs) / 1000 else 0
+                        recordingDistanceMeters = svc.getCurrentDistanceMeters()
+                        recordingOvertakeCount = svc.getCurrentOvertakeCount()
+                    } else {
+                        recordingDurationSec = 0L
+                        recordingDistanceMeters = 0.0
+                        recordingOvertakeCount = 0
+                    }
+
+                    // Update location
+                    val loc = svc.getLastLocation()
+                    if (loc != null) {
+                        currentLatitude = loc.latitude
+                        currentLongitude = loc.longitude
+
+                        // Detect new overtake event (when value changes significantly)
+                        val newCm = overtakeDistanceCm
+                        if (newCm != null && newCm != lastOvertakeCmForEvent && isRecording) {
+                            // Only add if it's a meaningful measurement
+                            if (newCm < 200) {
+                                val event = OvertakeEvent(
+                                    latitude = loc.latitude,
+                                    longitude = loc.longitude,
+                                    distanceCm = newCm
+                                )
+                                overtakeEvents.add(event)
+                                lastOvertakeEvent = event
+
+                                // Limit to 500 events
+                                if (overtakeEvents.size > 500) {
+                                    overtakeEvents.removeAt(0)
+                                }
+                            }
+                            lastOvertakeCmForEvent = newCm
+                        }
+                    }
                 } catch (t: Throwable) {
                     Log.e(TAG, "statusRunnable(): UI update error", t)
                 }
             }
-            // Level 1 smoothing happens via animations in UI
-            uiHandler.postDelayed(this, 1000L)
+            uiHandler.postDelayed(this, 200L) // ~5 Hz polling for smooth UI updates
         }
     }
 
@@ -149,37 +237,149 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
+        // Load prefs
+        handlebarWidthCm = prefs.handlebarWidthCm
+        obsUrl = prefs.obsUrl
+        apiKey = prefs.apiKey
+
+        // Request notification permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // Start service
         ContextCompat.startForegroundService(this, Intent(this, ObsLiteService::class.java))
+
+        // Load files and stats
+        refreshFiles()
+        refreshStats()
 
         setContent {
             MaterialTheme {
-                // FIX: device label stable (no "–")
-                val deviceLabel = "OBS Lite"
+                var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
-                // FIX: real selected state (tab bar not "fake")
-                var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+                // Show detail screens
+                val currentTrack = selectedPortalTrack
+                val currentLocalFile = selectedLocalFile
+                if (currentTrack != null) {
+                    PortalTrackDetailScreen(
+                        track = currentTrack,
+                        baseUrl = obsUrl,
+                        apiKey = apiKey,
+                        onBack = { selectedPortalTrack = null }
+                    )
+                } else if (currentLocalFile != null) {
+                    LocalTrackDetailScreen(
+                        file = currentLocalFile,
+                        onBack = { selectedLocalFile = null }
+                    )
+                } else {
+                    MainScreen(
+                        selectedTab = selectedTab,
+                        onSelectTab = { selectedTab = it },
 
-                IOSLikeRoot(
-                    usbConnected = usbConnected,
-                    usbStatusText = usbStatusText,
-                    isRecording = isRecording,
-                    deviceLabel = deviceLabel,
-                    leftText = leftDistanceText,
-                    rightText = rightDistanceText,
-                    overtakeCm = overtakeDistanceCm,
-                    handlebarWidthCm = handlebarWidthCm,
-                    onHandlebarWidthChange = { newValue ->
-                        handlebarWidthCm = newValue.coerceIn(30, 120)
-                        saveHandlebarWidthCm(handlebarWidthCm)
-                    },
-                    selectedIndex = selectedIndex,
-                    onSelectTab = { idx ->
-                        selectedIndex = idx
-                        if (idx == 1) startActivity(Intent(this, DataActivity::class.java))
-                    },
-                    onInfoTap = { startActivity(Intent(this, AboutActivity::class.java)) },
-                    onRecordTap = { handleRecordTap() }
-                )
+                        // Sensor Tab
+                        usbConnected = usbConnected,
+                        usbStatusText = usbStatusText,
+                        usbDeviceName = usbDeviceName,
+                        usbVendorProduct = usbVendorProduct,
+                        isRecording = isRecording,
+                        recordingDurationSec = recordingDurationSec,
+                        recordingDistanceMeters = recordingDistanceMeters,
+                        recordingOvertakeCount = recordingOvertakeCount,
+                        leftText = leftDistanceText,
+                        rightText = rightDistanceText,
+                        overtakeCm = overtakeDistanceCm,
+                        handlebarWidthCm = handlebarWidthCm,
+                        onHandlebarWidthChange = { newValue ->
+                            handlebarWidthCm = newValue.coerceIn(
+                                PrefsHelper.MIN_HANDLEBAR_WIDTH_CM,
+                                PrefsHelper.MAX_HANDLEBAR_WIDTH_CM
+                            )
+                            prefs.handlebarWidthCm = handlebarWidthCm
+                        },
+                        onRecordTap = { handleRecordTap() },
+                        onInfoTap = { startActivity(Intent(this, AboutActivity::class.java)) },
+
+                        // Map Tab
+                        overtakeEvents = overtakeEvents,
+                        lastOvertakeEvent = lastOvertakeEvent,
+                        currentLatitude = currentLatitude,
+                        currentLongitude = currentLongitude,
+                        onClearEvents = {
+                            overtakeEvents.clear()
+                            lastOvertakeEvent = null
+                        },
+
+                        // Recordings Tab
+                        obsUrl = obsUrl,
+                        onObsUrlChange = { obsUrl = it },
+                        apiKey = apiKey,
+                        onApiKeyChange = { apiKey = it },
+                        onSaveSettings = { savePortalSettings() },
+                        showSettingsSaved = showSettingsSaved,
+                        onPortalLogin = { openPortalLogin() },
+                        binFiles = binFiles,
+                        selectedFile = selectedBinFile,
+                        onSelectFile = { selectedBinFile = it },
+                        uploadStatus = uploadStatus,
+                        isUploading = isUploading,
+                        onUpload = { startUpload() },
+                        recordings = recordings,
+                        onDeleteSingle = { showDeleteSingleFor = it },
+                        onDeleteAll = { showDeleteAllDialog = true },
+                        onShareFile = { shareFile(it) },
+                        onViewFile = { selectedLocalFile = it },
+                        onUploadFile = { uploadSpecificFile(it) },
+                        uploadProgress = uploadProgress,
+
+                        // Portal Tracks
+                        portalTracks = portalTracks,
+                        isLoadingPortalTracks = isLoadingPortalTracks,
+                        portalError = portalError,
+                        onRefreshPortalTracks = { loadPortalTracks() },
+                        onPortalTrackClick = { track -> selectedPortalTrack = track },
+
+                        // Stats
+                        totalStats = totalStats,
+                        getRecordingStats = { fileName -> sessionStats.getStats(fileName) },
+
+                        // Toast
+                        showSaveToast = showSaveToast
+                    )
+
+                // Dialogs
+                showDeleteSingleFor?.let { file ->
+                    OBSConfirmDialog(
+                        title = "Datei loeschen?",
+                        message = "Moechtest du '${file.name}' wirklich loeschen?",
+                        confirmText = "Loeschen",
+                        destructive = true,
+                        onConfirm = {
+                            showDeleteSingleFor = null
+                            deleteSingle(file)
+                        },
+                        onDismiss = { showDeleteSingleFor = null }
+                    )
+                }
+
+                if (showDeleteAllDialog) {
+                    OBSConfirmDialog(
+                        title = "Alle loeschen?",
+                        message = "Moechtest du wirklich alle Aufzeichnungen loeschen?",
+                        confirmText = "Alle loeschen",
+                        destructive = true,
+                        onConfirm = {
+                            showDeleteAllDialog = false
+                            deleteAll()
+                        },
+                        onDismiss = { showDeleteAllDialog = false }
+                    )
+                }
+                }
             }
         }
     }
@@ -200,9 +400,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        saveHandlebarWidthCm(handlebarWidthCm)
+        prefs.handlebarWidthCm = handlebarWidthCm
+        prefs.obsUrl = obsUrl
+        prefs.apiKey = apiKey
     }
 
+    override fun onResume() {
+        super.onResume()
+        refreshFiles()
+    }
+
+    // --- Recording ---
     private fun handleRecordTap() {
         val svc = obsService ?: return
         if (!usbConnected) return
@@ -211,12 +419,236 @@ class MainActivity : ComponentActivity() {
             svc.stopRecording()
             isRecording = false
         } else {
-            saveHandlebarWidthCm(handlebarWidthCm)
+            prefs.handlebarWidthCm = handlebarWidthCm
             svc.startRecording()
             isRecording = true
         }
     }
 
+    // --- Files ---
+    private fun refreshFiles() {
+        val dir = File(getExternalFilesDir(null), "obslite")
+        val files = dir.listFiles { _, name -> name.endsWith(".bin") }
+            ?.sortedBy { it.lastModified() } ?: emptyList()
+
+        binFiles = files
+        if (selectedBinFile == null || selectedBinFile?.exists() != true) {
+            selectedBinFile = files.lastOrNull()
+        }
+
+        recordings = dir.listFiles { f -> f.isFile && f.name.endsWith(".bin") }
+            ?.sortedByDescending { it.lastModified() } ?: emptyList()
+    }
+
+    // --- Upload ---
+    private fun uploadSpecificFile(file: File) {
+        val url = obsUrl.trim()
+        val key = apiKey.trim()
+
+        if (url.isBlank() || key.isBlank()) {
+            Toast.makeText(this, "Bitte URL und API-Key ausfüllen.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (!file.exists()) {
+            Toast.makeText(this, "Datei existiert nicht.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        isUploading = true
+        uploadProgress = 0f
+        uploadStatus = "Upload läuft: ${file.name}"
+
+        Thread {
+            try {
+                val result = obsUploader.uploadTrack(file, url, key) { progress ->
+                    runOnUiThread { uploadProgress = progress }
+                }
+                runOnUiThread {
+                    isUploading = false
+                    uploadProgress = 1f
+                    uploadStatus = if (result.isSuccessful) {
+                        "Upload OK (${result.statusCode}) – ${file.name}"
+                    } else {
+                        "Fehler (${result.statusCode}) – ${file.name}\n${result.responseBody}"
+                    }
+                    Toast.makeText(
+                        this,
+                        if (result.isSuccessful) "Upload erfolgreich." else "Upload fehlgeschlagen.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    isUploading = false
+                    uploadProgress = 0f
+                    uploadStatus = "Fehler: ${e.message}"
+                    Toast.makeText(this, "Upload-Fehler: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun startUpload() {
+        val url = obsUrl.trim()
+        val key = apiKey.trim()
+
+        if (url.isBlank() || key.isBlank()) {
+            Toast.makeText(this, "Bitte URL und API-Key ausfüllen.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        refreshFiles()
+        val file = selectedBinFile
+        if (file == null || !file.exists()) {
+            Toast.makeText(this, "Keine gültige Datei ausgewählt.", Toast.LENGTH_SHORT).show()
+            uploadStatus = "Upload abgebrochen: keine Datei."
+            return
+        }
+
+        isUploading = true
+        uploadProgress = 0f
+        uploadStatus = "Upload läuft: ${file.name}"
+
+        Thread {
+            try {
+                val result = obsUploader.uploadTrack(file, url, key) { progress ->
+                    runOnUiThread { uploadProgress = progress }
+                }
+                runOnUiThread {
+                    isUploading = false
+                    uploadProgress = 1f
+                    uploadStatus = if (result.isSuccessful) {
+                        "Upload OK (${result.statusCode}) – ${file.name}"
+                    } else {
+                        "Fehler (${result.statusCode}) – ${file.name}\n${result.responseBody}"
+                    }
+                    Toast.makeText(
+                        this,
+                        if (result.isSuccessful) "Upload erfolgreich." else "Upload fehlgeschlagen.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    isUploading = false
+                    uploadProgress = 0f
+                    uploadStatus = "Fehler: ${e.message}"
+                    Toast.makeText(this, "Upload-Fehler: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    // --- Share ---
+    private fun shareFile(file: File) {
+        val uri = FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            file
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, "Datei teilen"))
+    }
+
+    // --- Delete ---
+    private fun deleteSingle(file: File) {
+        val fileName = file.name
+        val ok = runCatching { file.delete() }.getOrDefault(false)
+        if (ok) {
+            sessionStats.deleteStats(fileName)
+        }
+        Toast.makeText(
+            this,
+            if (ok) "Datei geloescht." else "Loeschen fehlgeschlagen.",
+            Toast.LENGTH_SHORT
+        ).show()
+        refreshFiles()
+        refreshStats()
+    }
+
+    private fun deleteAll() {
+        if (recordings.isEmpty()) {
+            Toast.makeText(this, "Keine Aufzeichnungen vorhanden.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        var okCount = 0
+        recordings.forEach { f ->
+            if (runCatching { f.delete() }.getOrDefault(false)) okCount++
+        }
+
+        refreshFiles()
+        refreshStats()
+        Toast.makeText(this, "$okCount Dateien geloescht.", Toast.LENGTH_SHORT).show()
+    }
+
+    // --- Portal Tracks ---
+    private fun loadPortalTracks() {
+        if (obsUrl.isBlank() || apiKey.isBlank()) {
+            portalError = "Portal nicht konfiguriert"
+            return
+        }
+
+        isLoadingPortalTracks = true
+        portalError = null
+
+        Thread {
+            val client = PortalApiClient(obsUrl, apiKey)
+            val result = client.fetchMyTracks(limit = 50)
+
+            runOnUiThread {
+                isLoadingPortalTracks = false
+                when (result) {
+                    is PortalTracksResult.Success -> {
+                        portalTracks = result.tracks
+                        portalError = null
+                    }
+                    is PortalTracksResult.Error -> {
+                        portalError = result.message
+                    }
+                }
+            }
+        }.start()
+    }
+
+    // --- Stats ---
+    private fun refreshStats() {
+        totalStats = sessionStats.getTotalStats()
+    }
+
+    // --- Portal Settings ---
+    private fun savePortalSettings() {
+        prefs.obsUrl = obsUrl
+        prefs.apiKey = apiKey
+
+        // Feedback anzeigen
+        showSettingsSaved = true
+        uiHandler.postDelayed({ showSettingsSaved = false }, 2000)
+
+        Toast.makeText(this, "Einstellungen gespeichert", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun openPortalLogin() {
+        if (obsUrl.isBlank()) {
+            Toast.makeText(this, "Bitte zuerst Portal-URL eingeben", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Einstellungen vor dem Login speichern
+        prefs.obsUrl = obsUrl
+        prefs.apiKey = apiKey
+
+        val intent = Intent(this, PortalLoginActivity::class.java)
+        intent.putExtra(PortalLoginActivity.EXTRA_BASE_URL, obsUrl)
+        portalLoginLauncher.launch(intent)
+    }
+
+    // --- Permissions ---
     private fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(
             this,
@@ -227,6 +659,7 @@ class MainActivity : ComponentActivity() {
         requestLocationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    // --- UI Updates ---
     private fun startStatusUiUpdates() {
         uiHandler.removeCallbacks(statusRunnable)
         uiHandler.post(statusRunnable)
@@ -236,633 +669,175 @@ class MainActivity : ComponentActivity() {
         uiHandler.removeCallbacks(statusRunnable)
     }
 
-    private fun loadHandlebarWidthCm(): Int = prefs.getInt(PREF_KEY_HANDLEBAR_WIDTH_CM, 60)
-
-    private fun saveHandlebarWidthCm(widthCm: Int) {
-        prefs.edit().putInt(PREF_KEY_HANDLEBAR_WIDTH_CM, widthCm).apply()
-    }
-
     private fun extractCmNumber(text: String): Int? {
         val regex = Regex("""(\d+)\s*cm""")
-        val m = regex.find(text) ?: return null
-        return m.groupValues.getOrNull(1)?.toIntOrNull()
-    }
-
-    companion object {
-        private const val TAG = "MainActivity"
-        private const val PREF_KEY_HANDLEBAR_WIDTH_CM = "handlebar_width_cm"
+        return regex.find(text)?.groupValues?.getOrNull(1)?.toIntOrNull()
     }
 }
 
+/**
+ * Haupt-Screen mit Tab-Navigation
+ */
 @Composable
-private fun IOSLikeRoot(
+private fun MainScreen(
+    selectedTab: Int,
+    onSelectTab: (Int) -> Unit,
+
+    // Sensor
     usbConnected: Boolean,
     usbStatusText: String,
+    usbDeviceName: String?,
+    usbVendorProduct: String?,
     isRecording: Boolean,
-    deviceLabel: String,
+    recordingDurationSec: Long,
+    recordingDistanceMeters: Double,
+    recordingOvertakeCount: Int,
     leftText: String,
     rightText: String,
     overtakeCm: Int?,
     handlebarWidthCm: Int,
     onHandlebarWidthChange: (Int) -> Unit,
-    selectedIndex: Int,
-    onSelectTab: (Int) -> Unit,
+    onRecordTap: () -> Unit,
     onInfoTap: () -> Unit,
-    onRecordTap: () -> Unit
-) {
-    val bg = Color(0xFFF2F2F7)
 
+    // Map
+    overtakeEvents: List<OvertakeEvent>,
+    lastOvertakeEvent: OvertakeEvent?,
+    currentLatitude: Double?,
+    currentLongitude: Double?,
+    onClearEvents: () -> Unit,
+
+    // Recordings
+    obsUrl: String,
+    onObsUrlChange: (String) -> Unit,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    onSaveSettings: () -> Unit,
+    showSettingsSaved: Boolean,
+    onPortalLogin: () -> Unit,
+    binFiles: List<File>,
+    selectedFile: File?,
+    onSelectFile: (File) -> Unit,
+    uploadStatus: String,
+    isUploading: Boolean,
+    uploadProgress: Float,
+    onUpload: () -> Unit,
+    recordings: List<File>,
+    onDeleteSingle: (File) -> Unit,
+    onDeleteAll: () -> Unit,
+    onShareFile: (File) -> Unit,
+    onViewFile: (File) -> Unit,
+    onUploadFile: (File) -> Unit,
+
+    // Portal Tracks
+    portalTracks: List<PortalTrackSummary>,
+    isLoadingPortalTracks: Boolean,
+    portalError: String?,
+    onRefreshPortalTracks: () -> Unit,
+    onPortalTrackClick: (PortalTrackSummary) -> Unit,
+
+    // Stats
+    totalStats: TotalStats?,
+    getRecordingStats: (String) -> com.example.obsliterecorder.util.RecordingStats?,
+
+    // Toast
+    showSaveToast: Boolean
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(bg)
+            .background(OBSColors.Background)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(top = 18.dp, bottom = 140.dp)
-        ) {
-            HeaderIOS(title = "OBS Recorder", onInfoTap = onInfoTap)
-
-            // Reduced "air"
-            Spacer(Modifier.height(14.dp))
-
-            StatusCardIOS(
-                deviceLabel = deviceLabel,
-                connected = usbConnected,
-                usbText = usbStatusText
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            // No toggle; show values if connected, otherwise hint (smooth)
-            SensorCardIOS(
-                connected = usbConnected,
+        // Tab Content
+        when (selectedTab) {
+            0 -> SensorTab(
+                usbConnected = usbConnected,
+                usbStatusText = usbStatusText,
+                usbDeviceName = usbDeviceName,
+                usbVendorProduct = usbVendorProduct,
+                isRecording = isRecording,
+                recordingDurationSec = recordingDurationSec,
+                recordingDistanceMeters = recordingDistanceMeters,
+                recordingOvertakeCount = recordingOvertakeCount,
                 leftText = leftText,
                 rightText = rightText,
-                overtakeCm = overtakeCm
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            HandlebarCardIOS(
+                overtakeCm = overtakeCm,
                 handlebarWidthCm = handlebarWidthCm,
-                onHandlebarWidthChange = onHandlebarWidthChange
+                onHandlebarWidthChange = onHandlebarWidthChange,
+                onRecordTap = onRecordTap,
+                onInfoTap = onInfoTap
             )
 
-            Spacer(Modifier.height(12.dp))
+            1 -> MapTab(
+                overtakeEvents = overtakeEvents,
+                lastOvertakeEvent = lastOvertakeEvent,
+                currentLatitude = currentLatitude,
+                currentLongitude = currentLongitude,
+                onClearEvents = onClearEvents
+            )
+
+            2 -> RecordingsTab(
+                obsUrl = obsUrl,
+                onObsUrlChange = onObsUrlChange,
+                apiKey = apiKey,
+                onApiKeyChange = onApiKeyChange,
+                onSaveSettings = onSaveSettings,
+                showSettingsSaved = showSettingsSaved,
+                onPortalLogin = onPortalLogin,
+                binFiles = binFiles,
+                selectedFile = selectedFile,
+                onSelectFile = onSelectFile,
+                uploadStatus = uploadStatus,
+                isUploading = isUploading,
+                uploadProgress = uploadProgress,
+                onUpload = onUpload,
+                recordings = recordings,
+                onDeleteSingle = onDeleteSingle,
+                onDeleteAll = onDeleteAll,
+                onShareFile = onShareFile,
+                onViewFile = onViewFile,
+                onUploadFile = onUploadFile,
+                portalTracks = portalTracks,
+                isLoadingPortalTracks = isLoadingPortalTracks,
+                portalError = portalError,
+                onRefreshPortalTracks = onRefreshPortalTracks,
+                onPortalTrackClick = onPortalTrackClick,
+                totalStats = totalStats,
+                getRecordingStats = getRecordingStats
+            )
         }
 
-        RecordPillIOS(
+        // Bottom Tab Bar
+        OBSBottomTabBar(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 74.dp),
-            enabled = usbConnected,
-            isRecording = isRecording,
-            onTap = onRecordTap
-        )
-
-        BottomTabBarIOS(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 14.dp),
-            selectedIndex = selectedIndex,
+                .padding(bottom = 16.dp),
+            items = listOf("Sensor", "Karte", "Aufzeichnungen"),
+            selectedIndex = selectedTab,
             onSelect = onSelectTab
         )
-    }
-}
 
-@Composable
-private fun HeaderIOS(
-    title: String,
-    onInfoTap: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            modifier = Modifier.align(Alignment.Center),
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Surface(
+        // Save Toast
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showSaveToast,
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(36.dp),
-            shape = CircleShape,
-            color = Color.White,
-            tonalElevation = 1.dp,
-            shadowElevation = 2.dp
+                .align(Alignment.TopCenter)
+                .padding(top = 80.dp),
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut()
         ) {
-            TextButton(onClick = onInfoTap) {
-                Icon(
-                    imageVector = Icons.Filled.Info,
-                    contentDescription = "Info",
-                    tint = Color(0xFF0A84FF)
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                color = OBSColors.Good,
+                shadowElevation = 4.dp
+            ) {
+                androidx.compose.material3.Text(
+                    "Aufnahme gespeichert",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun StatusCardIOS(
-    deviceLabel: String,
-    connected: Boolean,
-    usbText: String
-) {
-    // Connection colors are neutral (no orange warning semantics)
-    val dotTarget = if (connected) Color(0xFF34C759) else Color(0xFF9CA3AF)
-    val dotColor by animateColorAsState(dotTarget, label = "conn_dot")
-
-    val stateLabel = if (connected) "Verbunden" else "Nicht verbunden"
-    val pillBg = if (connected) Color(0xFFE8F7EE) else Color(0xFFF3F4F6)
-    val pillFg = if (connected) Color(0xFF1B7A3C) else Color(0xFF374151)
-
-    CardIOS {
-        Column(modifier = Modifier.animateContentSize()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Gerät", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = deviceLabel,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111111)
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = pillBg
-                ) {
-                    Text(
-                        text = stateLabel,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        color = pillFg,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Divider(color = Color(0xFFE5E7EB))
-            Spacer(Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.Top) {
-                DotIcon(color = dotColor)
-                Spacer(Modifier.width(10.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = if (connected) "Mit Sensor verbunden" else "Keine Sensorverbindung",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = if (connected) "Messwerte werden empfangen." else "Bitte OBS Lite verbinden.",
-                        color = Color(0xFF6B7280)
-                    )
-
-                    Spacer(Modifier.height(6.dp))
-                    Text(usbText, color = Color(0xFF6B7280))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SensorCardIOS(
-    connected: Boolean,
-    leftText: String,
-    rightText: String,
-    overtakeCm: Int?
-) {
-    CardIOS {
-        Column(modifier = Modifier.animateContentSize()) {
-            Text("Sensorwerte", fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(10.dp))
-
-            // Option B (stable): AnimatedVisibility instead of AnimatedContent
-            AnimatedVisibility(
-                visible = connected,
-                enter = fadeIn(tween(180)),
-                exit = fadeOut(tween(120))
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        DistanceColumnIOS(
-                            title = "Abstand links",
-                            text = leftText,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(Modifier.width(18.dp))
-                        DistanceColumnIOS(
-                            title = "Abstand rechts",
-                            text = rightText,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(
-                visible = !connected,
-                enter = fadeIn(tween(180)),
-                exit = fadeOut(tween(120))
-            ) {
-                Text("Sensor nicht verbunden.", color = Color(0xFF6B7280))
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Divider(color = Color(0xFFE5E7EB))
-            Spacer(Modifier.height(12.dp))
-
-            OvertakeKpiRow(overtakeCm)
-        }
-    }
-}
-
-private data class StatusLabel(val label: String, val color: Color)
-
-private fun overtakeStatus(cm: Int?): StatusLabel = when {
-    cm == null -> StatusLabel("–", Color(0xFF9CA3AF))
-    cm >= 150 -> StatusLabel("OK", Color(0xFF34C759))
-    cm >= 100 -> StatusLabel("Knapp", Color(0xFFFFCC00))
-    else -> StatusLabel("Gefährlich", Color(0xFFFF3B30))
-}
-
-@Composable
-private fun OvertakeKpiRow(overtakeCm: Int?) {
-    Text("Überholabstand", fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(6.dp))
-
-    val status = overtakeStatus(overtakeCm)
-    val animatedDot by animateColorAsState(status.color, label = "overtake_dot")
-
-    // Level 1 smoothing: animate number changes
-    val targetValue = overtakeCm ?: 0
-    val animatedValue by animateIntAsState(targetValue = targetValue, label = "overtake_value")
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.semantics {
-            stateDescription = when (status.label) {
-                "OK" -> "Überholabstand ok"
-                "Knapp" -> "Überholabstand knapp"
-                "Gefährlich" -> "Überholabstand gefährlich"
-                else -> "Überholabstand unbekannt"
-            }
-        }
-    ) {
-        Surface(
-            modifier = Modifier.size(10.dp),
-            shape = CircleShape,
-            color = animatedDot
-        ) {}
-        Spacer(Modifier.width(8.dp))
-
-        Text(status.label, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.width(10.dp))
-
-        val showValue = if (overtakeCm == null) "–" else animatedValue.toString()
-        Text(showValue, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.width(6.dp))
-        Text("cm", color = Color(0xFF6B7280))
-    }
-}
-
-@Composable
-private fun HandlebarCardIOS(
-    handlebarWidthCm: Int,
-    onHandlebarWidthChange: (Int) -> Unit
-) {
-    CardIOS {
-        Text("Lenkerbreite", fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(8.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$handlebarWidthCm", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(6.dp))
-            Text("cm", color = Color(0xFF6B7280))
-            Spacer(Modifier.weight(1f))
-
-            StepperIOS(
-                onMinus = { onHandlebarWidthChange(handlebarWidthCm - 1) },
-                onPlus = { onHandlebarWidthChange(handlebarWidthCm + 1) }
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Text("Wird zur Berechnung des Überholabstands verwendet.", color = Color(0xFF6B7280))
-    }
-}
-
-@Composable
-private fun RecordPillIOS(
-    modifier: Modifier,
-    enabled: Boolean,
-    isRecording: Boolean,
-    onTap: () -> Unit
-) {
-    val gradient = if (isRecording) {
-        Brush.horizontalGradient(listOf(Color(0xFFFF453A), Color(0xFFFF3B30)))
-    } else {
-        Brush.horizontalGradient(listOf(Color(0xFF34C759), Color(0xFF30D158)))
-    }
-
-    val text = if (isRecording) "Aufnahme stoppen" else "Aufnahme starten"
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .heightIn(min = 58.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .semantics {
-                stateDescription = when {
-                    !enabled -> "Sensor nicht verbunden"
-                    isRecording -> "Aufnahme läuft"
-                    else -> "Bereit zur Aufnahme"
-                }
-            },
-        shadowElevation = if (enabled) 10.dp else 0.dp,
-        color = Color.Transparent
-    ) {
-        Button(
-            onClick = onTap,
-            enabled = enabled,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(gradient, RoundedCornerShape(18.dp))
-                .alpha(if (enabled) 1f else 0.55f)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    modifier = Modifier.size(12.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-
-                Spacer(Modifier.width(10.dp))
-
-                Text(
-                    text = text,
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (!enabled) {
-                    Text(
-                        "Sensor nicht verbunden",
-                        color = Color.White.copy(alpha = 0.85f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BottomTabBarIOS(
-    modifier: Modifier,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit
-) {
-    val outer = RoundedCornerShape(999.dp)
-
-    Surface(
-        modifier = modifier
-            .padding(horizontal = 28.dp)
-            .fillMaxWidth(),
-        shape = outer,
-        color = Color.White.copy(alpha = 0.92f),
-        shadowElevation = 12.dp
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            val gap = 8.dp
-            val itemWidth = (maxWidth - gap) / 2
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(gap)
-            ) {
-                TabPillTextItem(
-                    modifier = Modifier.width(itemWidth),
-                    selected = (selectedIndex == 0),
-                    label = "Sensor",
-                    onClick = { onSelect(0) }
-                )
-                TabPillTextItem(
-                    modifier = Modifier.width(itemWidth),
-                    selected = (selectedIndex == 1),
-                    label = "Aufzeichnungen",
-                    onClick = { onSelect(1) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TabPillTextItem(
-    modifier: Modifier = Modifier,
-    selected: Boolean,
-    label: String,
-    onClick: () -> Unit
-) {
-    val shape = RoundedCornerShape(999.dp)
-    val bg = if (selected) Color(0xFFE5E7EB) else Color.Transparent
-    val fg = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
-
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .background(bg)
-            .clickable(role = Role.Tab, onClick = onClick)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, color = fg, fontWeight = FontWeight.SemiBold, maxLines = 1)
-    }
-}
-
-@Composable
-private fun StepperIOS(
-    onMinus: () -> Unit,
-    onPlus: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFE5E7EB)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            StepperButton(text = "–", onClick = onMinus)
-            Divider(
-                modifier = Modifier
-                    .height(26.dp)
-                    .width(1.dp),
-                color = Color(0xFFD1D5DB)
-            )
-            StepperButton(text = "+", onClick = onPlus)
-        }
-    }
-}
-
-@Composable
-private fun StepperButton(
-    text: String,
-    onClick: () -> Unit
-) {
-    TextButton(onClick = onClick) {
-        Text(text, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-    }
-}
-
-@Composable
-private fun DistanceColumnIOS(
-    title: String,
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    // Parse service text: "Links (ID 1): Roh: 123 cm  |  korrigiert: 98 cm"
-    val correctedCm = extractCorrectedFromText(text)
-    val rawCm = extractRawFromText(text)
-    val labelPrefix = extractLabelPrefix(text) // "Links (ID 1)" / "Rechts (ID 2)" ...
-
-    // Level 1 smoothing: animate displayed number + progress (based on corrected)
-    val targetCm = correctedCm ?: 0
-    val animatedCm by animateIntAsState(targetValue = targetCm, label = "cm_anim")
-
-    val targetProgress = progressForCm(correctedCm)
-    val animatedProgress by animateFloatAsState(targetValue = targetProgress, label = "prog_anim")
-
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold)
-
-        // Primary: corrected cm
-        val value = if (correctedCm == null) "–" else animatedCm.toString()
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(6.dp))
-            Text("cm", color = Color(0xFF6B7280))
-        }
-
-        LinearProgressIndicator(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(99.dp)),
-            progress = animatedProgress,
-            color = overtakeColorIOS(correctedCm),
-            trackColor = Color(0xFFE5E7EB)
-        )
-
-        // Secondary: raw value (short, never ends at "Roh:")
-        val rawLine = if (rawCm != null) "Roh: $rawCm cm" else "Roh: –"
-        Text(
-            text = rawLine,
-            color = Color(0xFF6B7280),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        // Optional: show prefix (ID) in compact form
-        if (!labelPrefix.isNullOrBlank()) {
-            Text(
-                text = labelPrefix,
-                color = Color(0xFF6B7280),
-                modifier = Modifier.alpha(0.9f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-private fun extractCorrectedFromText(text: String): Int? {
-    val regex = Regex("""korrigiert:\s*(\d+)\s*cm""")
-    val m = regex.find(text) ?: return null
-    return m.groupValues.getOrNull(1)?.toIntOrNull()
-}
-
-private fun extractRawFromText(text: String): Int? {
-    val regex = Regex("""Roh:\s*(\d+)\s*cm""")
-    val m = regex.find(text) ?: return null
-    return m.groupValues.getOrNull(1)?.toIntOrNull()
-}
-
-private fun extractLabelPrefix(text: String): String? {
-    // Everything before ": Roh:" -> "Links (ID 1)" / "Rechts (ID 2)" etc.
-    val regex = Regex("""^(.+?):\s*Roh:""")
-    val m = regex.find(text) ?: return null
-    return m.groupValues.getOrNull(1)?.trim()
-}
-
-private fun progressForCm(cm: Int?): Float {
-    if (cm == null) return 0f
-    val max = 200f
-    return (cm.coerceIn(0, 200) / max)
-}
-
-private fun overtakeColorIOS(cm: Int?): Color {
-    if (cm == null) return Color(0xFF9CA3AF)
-    return when {
-        cm >= 150 -> Color(0xFF34C759)
-        cm >= 100 -> Color(0xFFFFCC00)
-        else -> Color(0xFFFF3B30)
-    }
-}
-
-@Composable
-private fun DotIcon(color: Color) {
-    Surface(
-        modifier = Modifier.size(18.dp),
-        shape = CircleShape,
-        color = Color.Transparent
-    ) {
-        Surface(
-            modifier = Modifier
-                .padding(4.dp)
-                .size(10.dp),
-            shape = CircleShape,
-            color = color
-        ) {}
-    }
-}
-
-@Composable
-private fun CardIOS(content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            content()
         }
     }
 }
