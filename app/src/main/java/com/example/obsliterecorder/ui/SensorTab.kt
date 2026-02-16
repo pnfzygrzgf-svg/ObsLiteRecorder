@@ -46,6 +46,11 @@ fun SensorTab(
     usbStatusText: String,
     usbDeviceName: String?,
     usbVendorProduct: String?,
+    bleConnected: Boolean = false,
+    bleStatusText: String = "BLE: nicht verbunden",
+    bleDeviceName: String? = null,
+    deviceConnected: Boolean = usbConnected,
+    connectionType: String = "",
     isRecording: Boolean,
     recordingDurationSec: Long = 0L,
     recordingDistanceMeters: Double = 0.0,
@@ -83,8 +88,13 @@ fun SensorTab(
 
             // 1) Kompakter Connection-Header (Pill wie iOS)
             CompactConnectionPill(
-                connected = usbConnected,
-                deviceName = usbDeviceName,
+                connected = deviceConnected,
+                deviceName = when {
+                    usbConnected -> usbDeviceName
+                    bleConnected -> bleDeviceName
+                    else -> null
+                },
+                connectionType = connectionType,
                 onClick = { showSensorSheet = true }
             )
 
@@ -93,7 +103,7 @@ fun SensorTab(
             // 2) Hero-Ueberholabstand (grosse Zahl wie iOS)
             HeroOvertakeCard(
                 overtakeCm = overtakeCm,
-                connected = usbConnected
+                connected = deviceConnected
             )
 
             // 3) Live Recording Stats (sichtbar waehrend Aufnahme)
@@ -118,7 +128,7 @@ fun SensorTab(
             CollapsibleSideDistancesCard(
                 expanded = showSideDistances,
                 onToggle = { showSideDistances = !showSideDistances },
-                connected = usbConnected,
+                connected = deviceConnected,
                 leftText = leftText,
                 rightText = rightText
             )
@@ -142,7 +152,7 @@ fun SensorTab(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 74.dp),
             text = if (isRecording) "Aufnahme stoppen" else "Aufnahme starten",
-            enabled = usbConnected,
+            enabled = deviceConnected,
             isActive = isRecording,
             disabledText = "Sensor nicht verbunden",
             onClick = onRecordTap
@@ -152,10 +162,16 @@ fun SensorTab(
     // Sensor-Info Bottom Sheet
     if (showSensorSheet) {
         SensorInfoSheet(
-            connected = usbConnected,
-            deviceName = usbDeviceName,
+            connected = deviceConnected,
+            connectionType = connectionType,
+            deviceName = when {
+                usbConnected -> usbDeviceName
+                bleConnected -> bleDeviceName
+                else -> null
+            },
             vendorProduct = usbVendorProduct,
             usbStatusText = usbStatusText,
+            bleStatusText = bleStatusText,
             leftText = leftText,
             rightText = rightText,
             overtakeCm = overtakeCm,
@@ -170,15 +186,17 @@ fun SensorTab(
 private fun CompactConnectionPill(
     connected: Boolean,
     deviceName: String?,
+    connectionType: String = "",
     onClick: () -> Unit
 ) {
     val dotColor by animateColorAsState(
         if (connected) OBSColors.Good else OBSColors.Gray400,
         label = "pill_dot"
     )
+    val typePrefix = if (connectionType.isNotEmpty()) "$connectionType: " else ""
     val statusText = when {
-        connected && deviceName != null -> deviceName
-        connected -> "Verbunden"
+        connected && deviceName != null -> "$typePrefix$deviceName"
+        connected -> "${typePrefix}Verbunden"
         else -> "Nicht verbunden"
     }
 
@@ -547,9 +565,11 @@ private fun CollapsibleHandlebarCard(
 @Composable
 private fun SensorInfoSheet(
     connected: Boolean,
+    connectionType: String = "",
     deviceName: String?,
     vendorProduct: String?,
     usbStatusText: String,
+    bleStatusText: String = "",
     leftText: String,
     rightText: String,
     overtakeCm: Int?,
@@ -584,8 +604,13 @@ private fun SensorInfoSheet(
                     Spacer(Modifier.width(10.dp))
 
                     Column {
+                        val connLabel = when {
+                            connected && connectionType.isNotEmpty() -> "Verbunden ($connectionType)"
+                            connected -> "Verbunden"
+                            else -> "Nicht verbunden"
+                        }
                         Text(
-                            if (connected) "Verbunden" else "Nicht verbunden",
+                            connLabel,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
                         )
@@ -600,6 +625,9 @@ private fun SensorInfoSheet(
 
                         Spacer(Modifier.height(4.dp))
                         Text(usbStatusText, color = OBSColors.Gray500, fontSize = 13.sp)
+                        if (bleStatusText.isNotEmpty()) {
+                            Text(bleStatusText, color = OBSColors.Gray500, fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -651,9 +679,13 @@ private fun SensorInfoSheet(
                     Text("Verbindungsprobleme?", fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "1. Stelle sicher, dass der OBS Lite per USB angeschlossen ist.\n" +
-                                "2. Erlaube den USB-Zugriff wenn angefragt.\n" +
-                                "3. Starte die App ggf. neu.",
+                        "USB:\n" +
+                                "1. Stelle sicher, dass der OBS Lite per USB angeschlossen ist.\n" +
+                                "2. Erlaube den USB-Zugriff wenn angefragt.\n\n" +
+                                "Bluetooth:\n" +
+                                "1. Stelle sicher, dass Bluetooth aktiviert ist.\n" +
+                                "2. Erlaube BLE-Berechtigungen wenn angefragt.\n" +
+                                "3. Der Sensor wird automatisch gesucht.",
                         color = OBSColors.Gray500,
                         fontSize = 13.sp,
                         lineHeight = 20.sp

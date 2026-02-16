@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- BLE für kabellose Sensorverbindung -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <!-- Foreground-Service für dauerhafte Aufzeichnung im Hintergrund -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
@@ -21,7 +27,10 @@
     <!-- USB-Host, weil du als Host ein externes USB-Gerät (OBS Lite) ansteckst -->
     <uses-feature
         android:name="android.hardware.usb.host"
-        android:required="true" />
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
     <!--
         Wenn du möchtest, dass die App auch auf Geräten ohne USB-Port im Play Store erscheint,
         setze android:required="false". Dann musst du aber selbst abfangen,

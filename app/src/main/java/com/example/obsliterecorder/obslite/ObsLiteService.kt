@@ -101,6 +101,13 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
     private val TARGET_VENDOR_ID: Int? = null
     private val TARGET_PRODUCT_ID: Int? = null
 
+    // --- BLE / OpenBikeSensor Lite ---
+    private var bleManager: ObsBleManager? = null
+
+    @Volatile private var bleConnected = false
+    @Volatile private var bleStatusText: String = "BLE: nicht verbunden"
+    @Volatile private var bleDeviceName: String? = null
+
     // --- GPS / Location ---
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
@@ -212,6 +219,18 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
             registerReceiver(usbReceiver, filter)
         }
 
+        // BLE setup
+        bleManager = ObsBleManager(
+            context = this,
+            onData = { data -> onBleData(data) },
+            onConnectionChanged = { connected, name ->
+                bleConnected = connected
+                bleDeviceName = name
+                bleStatusText = if (connected) "BLE: verbunden" else "BLE: nicht verbunden"
+            }
+        )
+        bleManager?.startScan()
+
         // GPS
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         ensureLocationUpdates()
@@ -293,6 +312,19 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
 
     fun requestUsbPermissionFromUi() = requestUsbPermission()
     fun disconnectUsbFromUi() = disconnectUsb()
+
+    // --- BLE API ---
+    fun isBleConnected(): Boolean = bleConnected
+    fun getBleStatus(): String = bleStatusText
+    fun getBleDeviceName(): String? = bleDeviceName
+    fun isDeviceConnected(): Boolean = obsLiteConnected || bleConnected
+    fun getConnectionType(): String = when {
+        obsLiteConnected -> "USB"
+        bleConnected -> "BLE"
+        else -> ""
+    }
+    fun startBleScan() { bleManager?.startScan() }
+    fun disconnectBle() { bleManager?.disconnect() }
 
     // --- Location ---
     fun ensureLocationUpdates() {
@@ -406,6 +438,7 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         stopRecording()
         stopLocationUpdatesInternal()
         if (obsLiteConnected) disconnectUsb()
+        bleManager?.close()
 
         if (isForeground) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -590,6 +623,23 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         }
     }
 
+    // --- BLE data path (feeds into same pipeline as USB) ---
+    private fun onBleData(data: ByteArray) {
+        // data is already COBS-encoded + 0x00 delimited by ObsBleManager
+        bleStatusText = "BLE: Daten ${data.size} B"
+        onUsbData(data)
+
+        previewHandler.post {
+            previewFillByteList(data)
+            var loops = 0
+            while (previewCompleteCobsAvailable()) {
+                handlePreviewEventSafe()
+                loops++
+                if (loops >= 1000) break
+            }
+        }
+    }
+
     // --- Preview path ---
     private fun previewFillByteList(data: ByteArray) {
         for (b in data) {
@@ -691,6 +741,8 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         stopLocationUpdatesInternal()
 
         if (obsLiteConnected) disconnectUsb()
+        bleManager?.close()
+        bleManager = null
 
         if (isForeground) {
             stopForeground(STOP_FOREGROUND_REMOVE)

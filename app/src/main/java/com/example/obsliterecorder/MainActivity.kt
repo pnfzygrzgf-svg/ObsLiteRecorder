@@ -32,6 +32,7 @@ import com.example.obsliterecorder.portal.PortalTrackSummary
 import com.example.obsliterecorder.portal.PortalTracksResult
 import androidx.core.content.FileProvider
 import com.example.obsliterecorder.ui.*
+import com.example.obsliterecorder.ui.OnboardingScreen
 import com.example.obsliterecorder.util.PrefsHelper
 import com.example.obsliterecorder.util.SessionStats
 import com.example.obsliterecorder.util.TotalStats
@@ -52,6 +53,10 @@ class MainActivity : ComponentActivity() {
     // --- Service state (polled) ---
     private var usbConnected by mutableStateOf(false)
     private var usbStatusText by mutableStateOf("USB: nicht verbunden")
+    private var bleConnected by mutableStateOf(false)
+    private var bleStatusText by mutableStateOf("BLE: nicht verbunden")
+    private var deviceConnected by mutableStateOf(false)
+    private var connectionType by mutableStateOf("")
 
     private var leftDistanceText by mutableStateOf("Links: -")
     private var rightDistanceText by mutableStateOf("Rechts: -")
@@ -64,6 +69,7 @@ class MainActivity : ComponentActivity() {
     // --- Device Info ---
     private var usbDeviceName by mutableStateOf<String?>(null)
     private var usbVendorProduct by mutableStateOf<String?>(null)
+    private var bleDeviceName by mutableStateOf<String?>(null)
 
     // --- Live Recording Stats ---
     private var recordingDurationSec by mutableStateOf(0L)
@@ -103,6 +109,9 @@ class MainActivity : ComponentActivity() {
     // --- Local Track Detail ---
     private var selectedLocalFile by mutableStateOf<File?>(null)
 
+    // --- Onboarding ---
+    private var showOnboarding by mutableStateOf(false)
+
     // --- Dialogs ---
     private var showDeleteSingleFor by mutableStateOf<File?>(null)
     private var showDeleteAllDialog by mutableStateOf(false)
@@ -118,18 +127,23 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    private val requestLocationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                obsService?.ensureLocationUpdates()
-            } else {
-                Log.w(TAG, "Location permission denied")
-            }
-        }
 
-    private val requestNotificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            Log.d(TAG, "Notification permission granted=$granted")
+    private val requestAllPermissionsLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            Log.d(TAG, "Permissions result: $results")
+
+            // Location granted -> start GPS
+            if (results[android.Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+                obsService?.ensureLocationUpdates()
+            }
+
+            // BLE granted -> start scan
+            val bleGranted = (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) ||
+                (results[android.Manifest.permission.BLUETOOTH_SCAN] == true &&
+                 results[android.Manifest.permission.BLUETOOTH_CONNECT] == true)
+            if (bleGranted) {
+                obsService?.startBleScan()
+            }
         }
 
     private val connection = object : ServiceConnection {
@@ -143,8 +157,6 @@ class MainActivity : ComponentActivity() {
 
             if (hasLocationPermission()) {
                 obsService?.ensureLocationUpdates()
-            } else {
-                requestLocationPermission()
             }
 
             startStatusUiUpdates()
@@ -167,6 +179,11 @@ class MainActivity : ComponentActivity() {
                 try {
                     usbConnected = svc.isUsbConnected()
                     usbStatusText = svc.getUsbStatus()
+                    bleConnected = svc.isBleConnected()
+                    bleStatusText = svc.getBleStatus()
+                    bleDeviceName = svc.getBleDeviceName()
+                    deviceConnected = svc.isDeviceConnected()
+                    connectionType = svc.getConnectionType()
 
                     val wasRecording = isRecording
                     isRecording = svc.isRecordingActive()
@@ -242,12 +259,38 @@ class MainActivity : ComponentActivity() {
         obsUrl = prefs.obsUrl
         apiKey = prefs.apiKey
 
-        // Request notification permission on Android 13+
+        // Show onboarding on first launch
+        val onboardingPrefs = getSharedPreferences("obslite_prefs", MODE_PRIVATE)
+        showOnboarding = !onboardingPrefs.getBoolean("has_seen_onboarding", false)
+
+        // Request all needed permissions in one dialog
+        val permsToRequest = mutableListOf<String>()
+
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            permsToRequest.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
-                requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                permsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN)
+                != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(android.Manifest.permission.BLUETOOTH_SCAN)
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED) {
+                permsToRequest.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        }
+
+        if (permsToRequest.isNotEmpty()) {
+            requestAllPermissionsLauncher.launch(permsToRequest.toTypedArray())
         }
 
         // Start service
@@ -259,6 +302,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
+                if (showOnboarding) {
+                    OnboardingScreen(onComplete = {
+                        getSharedPreferences("obslite_prefs", MODE_PRIVATE)
+                            .edit().putBoolean("has_seen_onboarding", true).apply()
+                        showOnboarding = false
+                    })
+                    return@MaterialTheme
+                }
+
                 var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
                 // Show detail screens
@@ -286,6 +338,11 @@ class MainActivity : ComponentActivity() {
                         usbStatusText = usbStatusText,
                         usbDeviceName = usbDeviceName,
                         usbVendorProduct = usbVendorProduct,
+                        bleConnected = bleConnected,
+                        bleStatusText = bleStatusText,
+                        bleDeviceName = bleDeviceName,
+                        deviceConnected = deviceConnected,
+                        connectionType = connectionType,
                         isRecording = isRecording,
                         recordingDurationSec = recordingDurationSec,
                         recordingDistanceMeters = recordingDistanceMeters,
@@ -413,7 +470,7 @@ class MainActivity : ComponentActivity() {
     // --- Recording ---
     private fun handleRecordTap() {
         val svc = obsService ?: return
-        if (!usbConnected) return
+        if (!svc.isDeviceConnected()) return
 
         if (isRecording) {
             svc.stopRecording()
@@ -655,10 +712,6 @@ class MainActivity : ComponentActivity() {
             android.Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-    private fun requestLocationPermission() {
-        requestLocationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
-    }
-
     // --- UI Updates ---
     private fun startStatusUiUpdates() {
         uiHandler.removeCallbacks(statusRunnable)
@@ -688,6 +741,11 @@ private fun MainScreen(
     usbStatusText: String,
     usbDeviceName: String?,
     usbVendorProduct: String?,
+    bleConnected: Boolean,
+    bleStatusText: String,
+    bleDeviceName: String?,
+    deviceConnected: Boolean,
+    connectionType: String,
     isRecording: Boolean,
     recordingDurationSec: Long,
     recordingDistanceMeters: Double,
@@ -755,6 +813,11 @@ private fun MainScreen(
                 usbStatusText = usbStatusText,
                 usbDeviceName = usbDeviceName,
                 usbVendorProduct = usbVendorProduct,
+                bleConnected = bleConnected,
+                bleStatusText = bleStatusText,
+                bleDeviceName = bleDeviceName,
+                deviceConnected = deviceConnected,
+                connectionType = connectionType,
                 isRecording = isRecording,
                 recordingDurationSec = recordingDurationSec,
                 recordingDistanceMeters = recordingDistanceMeters,
