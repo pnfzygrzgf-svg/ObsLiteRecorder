@@ -185,10 +185,10 @@ fun LocalTrackDetailScreen(
                                                 val marker = Marker(this).apply {
                                                     position = GeoPoint(event.latitude, event.longitude)
                                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                                    title = "Ueberholung: ${event.distanceCm} cm"
+                                                    title = "Ueberholung: ${event.distanceOvertakerCm} cm"
 
-                                                    val color = OBSColors.overtakeColor(event.distanceCm)
-                                                    val text = "${event.distanceCm}"
+                                                    val color = OBSColors.overtakeColor(event.distanceOvertakerCm)
+                                                    val text = "${event.distanceOvertakerCm}"
                                                     icon = createLocalMarkerDrawable(ctx, color, text)
                                                 }
                                                 overlays.add(marker)

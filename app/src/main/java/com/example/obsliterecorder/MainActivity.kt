@@ -331,7 +331,10 @@ class MainActivity : ComponentActivity() {
                 } else {
                     MainScreen(
                         selectedTab = selectedTab,
-                        onSelectTab = { selectedTab = it },
+                        onSelectTab = {
+                            selectedTab = it
+                            if (it == 2) refreshFiles() // Aufzeichnungs-Tab: Dateiliste aktualisieren
+                        },
 
                         // Sensor Tab
                         usbConnected = usbConnected,

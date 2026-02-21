@@ -623,19 +623,60 @@ class ObsLiteService : Service(), SerialInputOutputManager.Listener {
         }
     }
 
-    // --- BLE data path (feeds into same pipeline as USB) ---
-    private fun onBleData(data: ByteArray) {
-        // data is already COBS-encoded + 0x00 delimited by ObsBleManager
-        bleStatusText = "BLE: Daten ${data.size} B"
-        onUsbData(data)
+    // --- BLE data path (direkt Protobuf, wie iOS) ---
+    private fun onBleData(rawProtobuf: ByteArray) {
+        bleStatusText = "BLE: Daten ${rawProtobuf.size} B"
 
-        previewHandler.post {
-            previewFillByteList(data)
-            var loops = 0
-            while (previewCompleteCobsAvailable()) {
-                handlePreviewEventSafe()
-                loops++
-                if (loops >= 1000) break
+        // (1) Preview: Protobuf direkt parsen (kein COBS-Roundtrip)
+        try {
+            val event: Event = Event.parseFrom(rawProtobuf)
+            handlePreviewEvent(event)
+        } catch (e: Exception) {
+            Log.e(TAG, "BLE preview: protobuf parse error (${rawProtobuf.size} bytes)", e)
+        }
+
+        // (2) Recording: COBS-encode + 0x00 und in Session-Pipeline schreiben
+        if (isRecording) {
+            val cobsEncoded = CobsUtils.encode2(rawProtobuf)
+            val framed = ByteArray(cobsEncoded.size + 1)
+            for (i in cobsEncoded.indices) {
+                framed[i] = cobsEncoded[i]
+            }
+            framed[framed.size - 1] = 0x00
+            onUsbData(framed)
+        }
+    }
+
+    /** Verarbeitet ein bereits geparstes Protobuf-Event fuer die Preview-Anzeige. */
+    private fun handlePreviewEvent(event: Event) {
+        if (event.hasDistanceMeasurement() && event.distanceMeasurement.distance < 5f) {
+            val rawCm = (event.distanceMeasurement.distance * 100).roundToInt()
+            val sourceId = event.distanceMeasurement.sourceId
+
+            val handlebarWidthCm = getHandlebarWidthCm()
+            val corrected = ((rawCm - handlebarWidthCm / 2.0).coerceAtLeast(0.0)).roundToInt()
+            if (sourceId == 1) previewTimeWindowMin.newValue(corrected)
+
+            val now = System.currentTimeMillis()
+            if (now - lastPreviewUpdateMs >= previewThrottleMs) {
+                lastPreviewUpdateMs = now
+                val text = "Roh: ${rawCm} cm  |  korrigiert: ${corrected} cm"
+                if (sourceId == 1) {
+                    leftDistanceText = "Links (ID 1): $text"
+                } else {
+                    rightDistanceText = "Rechts (ID $sourceId): $text"
+                }
+            }
+        } else if (event.hasUserInput()) {
+            val uiType = event.userInput.type
+            bleStatusText = "UserInput: $uiType"
+            if (isRecording) {
+                currentOvertakeCount++
+            }
+            overtakeDistanceText = if (previewTimeWindowMin.hasValue()) {
+                "Überholabstand: ${previewTimeWindowMin.minimum} cm"
+            } else {
+                "Überholabstand: -"
             }
         }
     }

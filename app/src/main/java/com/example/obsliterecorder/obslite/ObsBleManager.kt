@@ -13,15 +13,14 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.example.obsliterecorder.util.CobsUtils
 import java.util.UUID
 
 /**
  * BLE-Manager fuer OBS Lite Sensor (Nordic UART Service).
  *
  * Scannt nach dem OBS-BLE-Service, verbindet sich, subscribed auf TX-Notifications.
- * Empfangene Protobuf-Bytes werden in COBS gewrappt und per Callback weitergegeben,
- * damit die bestehende USB-Pipeline unveraendert wiederverwendet werden kann.
+ * Jede BLE-Notification enthaelt ein komplettes rohes Protobuf-Event (kein COBS).
+ * Die Bytes werden direkt per Callback weitergegeben.
  */
 @SuppressLint("MissingPermission")
 class ObsBleManager(
@@ -258,18 +257,9 @@ class ObsBleManager(
         }
     }
 
-    private fun handleBleData(rawProtobuf: ByteArray) {
-        if (rawProtobuf.isEmpty()) return
-
-        // Wrap raw protobuf bytes in COBS + 0x00 delimiter
-        // so the existing USB pipeline can process them unchanged
-        val cobsEncoded = CobsUtils.encode2(rawProtobuf)
-        val framed = ByteArray(cobsEncoded.size + 1)
-        for (i in cobsEncoded.indices) {
-            framed[i] = cobsEncoded[i]
-        }
-        framed[framed.size - 1] = 0x00 // frame delimiter
-
-        onData(framed)
+    private fun handleBleData(data: ByteArray) {
+        if (data.isEmpty()) return
+        // Jede BLE-Notification = ein komplettes rohes Protobuf-Event
+        onData(data)
     }
 }
