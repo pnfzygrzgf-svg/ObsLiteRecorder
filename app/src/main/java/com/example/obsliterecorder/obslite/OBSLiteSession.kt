@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // file: com/example/obsliterecorder/obslite/OBSLiteSession.kt
 package com.example.obsliterecorder.obslite
 

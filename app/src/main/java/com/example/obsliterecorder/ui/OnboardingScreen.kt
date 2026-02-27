@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package com.example.obsliterecorder.ui
 
 import androidx.compose.animation.*

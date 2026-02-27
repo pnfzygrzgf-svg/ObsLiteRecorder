@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // MapTab.kt - Karten-Ansicht mit Live-Überholvorgängen
 package com.example.obsliterecorder.ui
 

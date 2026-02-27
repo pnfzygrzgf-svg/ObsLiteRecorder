@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // SessionStats.kt - Statistiken fuer Aufnahme-Sessions
 package com.example.obsliterecorder.util
 

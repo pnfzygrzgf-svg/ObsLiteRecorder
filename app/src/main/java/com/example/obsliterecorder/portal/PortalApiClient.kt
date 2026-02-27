@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // PortalApiClient.kt - REST API Client fuer OBS Portal
 package com.example.obsliterecorder.portal
 

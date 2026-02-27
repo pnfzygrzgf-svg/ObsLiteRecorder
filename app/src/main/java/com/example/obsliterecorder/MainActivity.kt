@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // MainActivity.kt - Tab-Host für die App (wie iOS)
 package com.example.obsliterecorder
 

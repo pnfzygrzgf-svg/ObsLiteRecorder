@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // LocalTrackDetailScreen.kt - Detailansicht einer lokalen .bin Datei mit Karte
 package com.example.obsliterecorder.ui
 

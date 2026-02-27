@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // OBSTheme.kt - Zentrale Farben und Styles (wie iOS OBSUIV2)
 package com.example.obsliterecorder.ui
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // RecordingsTab.kt - Aufzeichnungen verwalten (iOS-Struktur: Hub + 3 Unterseiten)
 package com.example.obsliterecorder.ui
 

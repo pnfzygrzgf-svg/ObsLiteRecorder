@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // PrefsHelper.kt - Zentraler SharedPreferences Helper
 package com.example.obsliterecorder.util
 

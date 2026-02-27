@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // LocalTrackParser.kt - Portal-kompatible Verarbeitung lokaler .bin Dateien
 // Logik identisch zum OpenBikeSensor Portal (process_binary)
 package com.example.obsliterecorder.util

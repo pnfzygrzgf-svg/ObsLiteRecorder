@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // SensorTab.kt - Hauptansicht für Sensor-Daten (iOS-Style)
 package com.example.obsliterecorder.ui
 

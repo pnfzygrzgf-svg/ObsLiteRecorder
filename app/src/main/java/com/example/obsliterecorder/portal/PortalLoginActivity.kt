@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // PortalLoginActivity.kt - WebView-basierter Portal-Login
 package com.example.obsliterecorder.portal
 

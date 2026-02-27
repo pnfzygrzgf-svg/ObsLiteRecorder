@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // OBSComponents.kt - Gemeinsame UI-Komponenten
 package com.example.obsliterecorder.ui
 

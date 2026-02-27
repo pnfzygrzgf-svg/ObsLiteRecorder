@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // PortalTrackDetailScreen.kt - Detailansicht eines Portal-Tracks mit Karte
 package com.example.obsliterecorder.ui
 
